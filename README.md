@@ -1,4 +1,4 @@
-# Webres Video Factory (WVF)
+# Video Factory
 
 <div align="center">
 
@@ -19,7 +19,7 @@
 
 ---
 
-## 💡 ¿Qué es Webres Video Factory?
+## 💡 ¿Qué es Video Factory?
 
 WVF reemplaza los editores de video tradicionales (Premiere, After Effects, CapCut) y la grabación de pantalla en vivo con un **pipeline de código puro, determinista y matemáticamente sincronizado**.
 
@@ -105,8 +105,8 @@ flowchart TD
 WVF incluye un instalador idempotente que detecta tu arquitectura (Apple Silicon `arm64` o Intel `x86_64`), configura dependencias vía Homebrew y `uv`, compila el entorno virtual e instala las **7 skills de producción** de forma global para tus agentes de IA.
 
 ```bash
-git clone https://github.com/williamromero/webres-video-factory.git
-cd webres-video-factory
+git clone https://github.com/webresstudio/video-factory.git
+cd video-factory
 ./install.sh
 ```
 
