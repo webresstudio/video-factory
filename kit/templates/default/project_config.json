@@ -1,0 +1,13 @@
+{
+  "client_name": "Webres Studio",
+  "flow": {
+    "project_url": "https://flow.google.com/u/2/project/5f9a5e5e-121d-4375-a12b-0db1be62eb70/edit/ca935555-cecb-4fc0-b8d9-72d6d9d189ef",
+    "likeness_label": "Yo"
+  },
+  "flowmusic": {
+    "project_url": "https://www.flowmusic.app/project/95ce230f-9803-487f-b83d-cfcf3e58e405",
+    "preferred_track": "Tech Commercial",
+    "ducking_db": -9.5,
+    "use_imported_track": true
+  }
+}
