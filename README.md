@@ -157,24 +157,53 @@ wvf timeline
 # 4. Extraer eventos de animación al bus de audio
 wvf cues
 
-# 5. Generar música armónica y SFX sintetizados (-14 LUFS)
+# 5. Conectar e importar música de FlowMusic (opcional)
+wvf flowmusic --status
+wvf flowmusic --import ~/Downloads/tech_commercial.mp3
+
+# 6. Generar música armónica / FlowMusic y SFX sintetizados (-14 LUFS con ducking)
 wvf audio
 
-# 6. Inspección visual rápida de frames
+# 7. Inspección visual rápida de frames
 wvf frames 1.5 7.8 14.2 24.5
 
-# 7. Render final 60 fps determinista por CDP
+# 8. Render final 60 fps determinista por CDP
 wvf render --workers 4 --fps 60
 
-# 8. Auditoría técnica y claridad vocal
+# 9. Auditoría técnica y claridad vocal
 wvf qa
 
-# 9. Compresión móvil y distribución
+# 10. Compresión móvil y distribución
 wvf share --send-wa --contact "William Romero"
 
-# 10. Corrección quirúrgica de una palabra (e.g. 'API' por 'ápi')
+# 11. Corrección quirúrgica de una palabra (e.g. 'API' por 'ápi')
 wvf fix-word L09 "API" "Pero si usas la ápi..."
 ```
+
+---
+
+## 🎛️ Configuración de Proyectos por Cliente (`project_config.json`)
+
+Cada cliente o proyecto nuevo puede tener sus propias URLs de trabajo en Google Flow y FlowMusic. Al ejecutar `wvf new`, se genera un archivo `project_config.json` en la raíz del video:
+
+```json
+{
+  "client_name": "Nombre del Cliente",
+  "flow": {
+    "project_url": "https://flow.google.com/u/2/project/<id>/edit/<scene_id>",
+    "likeness_label": "Yo"
+  },
+  "flowmusic": {
+    "project_url": "https://www.flowmusic.app/project/<id_del_proyecto_del_cliente>",
+    "preferred_track": "Tech Commercial",
+    "ducking_db": -9.5,
+    "use_imported_track": true
+  }
+}
+```
+
+* **`wvf flowmusic --nav`**: Navega automáticamente la pestaña de Google Chrome al proyecto FlowMusic de ese cliente.
+* **`wvf flowmusic --import <track.mp3>`**: Convierte el tema a 48kHz estéreo, ajusta la duración con un fundido suave al cierre y activa el ducking inteligente de voz (-10 dB) en `wvf audio`.
 
 ---
 

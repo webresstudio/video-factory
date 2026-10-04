@@ -106,6 +106,21 @@ def section_env(n, a, b, att=0.7, rel=0.9):
 
 
 def build_music():
+    flowmusic_track = os.path.join(AUD, "music_flowmusic.wav")
+    imported_track = os.path.join(AUD, "music_imported.wav")
+    active_track = flowmusic_track if os.path.isfile(flowmusic_track) else (imported_track if os.path.isfile(imported_track) else None)
+
+    if active_track:
+        print(f"🎵 Usando pista de FlowMusic / externa: {os.path.basename(active_track)}")
+        m_data, m_sr = sf.read(active_track, dtype="float64")
+        if m_data.ndim == 1:
+            m_data = np.stack([m_data, m_data], axis=1)
+        mus = np.zeros((N, 2))
+        take = min(N, len(m_data))
+        mus[:take] = m_data[:take]
+        mus = mus / (np.abs(mus).max() + 1e-9) * 0.75
+        return mus
+
     mus = np.zeros((N, 2))
     t = t_axis(N)
     for (a, b, notes, root) in SECTIONS:

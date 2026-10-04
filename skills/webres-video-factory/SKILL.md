@@ -91,12 +91,25 @@ WVF is the official video production standard of **Webres Studio**. It replaces 
   wvf frames 1.5 7.8 14.2
   ```
 
-### Phase 6: Audio Architecture & Sound Design
+### Phase 6: Audio Architecture & Sound Design (Synthesis & FlowMusic)
+* **Client Project URL Configuration:**  
+  Each project can configure client-specific Google Flow and FlowMusic project URLs in `project_config.json`:
+  ```json
+  {
+    "client_name": "Webres Studio",
+    "flow": { "project_url": "https://flow.google.com/..." },
+    "flowmusic": { "project_url": "https://www.flowmusic.app/project/..." }
+  }
+  ```
+* **FlowMusic Integration:**
+  - Check tracks in the client's FlowMusic project: `wvf flowmusic --status`
+  - Navigate/Open the project in Chrome: `wvf flowmusic --nav`
+  - Import a downloaded track directly into the audio pipeline: `wvf flowmusic --import track.mp3`
 * Export animation visual cues:
   ```bash
   wvf cues
   ```
-* Synthesize harmonic pads and motion SFX:
+* Synthesize harmonic pads (or mix FlowMusic stem) with motion SFX & -10 dB voice ducking:
   ```bash
   wvf audio
   ```
@@ -149,6 +162,7 @@ wvf ingest                                    # Ingest research and media assets
 wvf timeline                                  # Align vocal track and generate timing.js
 wvf cues                                      # Export window.CUES to audio/cues.json
 wvf audio                                     # Procedural sound design & -14 LUFS mix
+wvf flowmusic [--status | --nav | --import]   # Connect & import FlowMusic project tracks
 wvf frames [seconds...]                       # Spot-check animation frames
 wvf render [--workers 4] [--fps 60]           # Full deterministic export
 wvf qa                                        # Technical compliance & Whisper audit

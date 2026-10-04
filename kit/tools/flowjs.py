@@ -34,6 +34,18 @@ return "NO_TAB"
     return res.stdout.strip()
 
 
+def get_default_project_url():
+    cfg_file = os.path.join(os.getcwd(), "project_config.json")
+    if os.path.isfile(cfg_file):
+        try:
+            import json
+            cfg = json.load(open(cfg_file, encoding="utf-8"))
+            return cfg.get("flow", {}).get("project_url")
+        except Exception:
+            pass
+    return None
+
+
 def nav(url: str) -> str:
     script = f'''
 tell application "Google Chrome"
@@ -41,12 +53,18 @@ tell application "Google Chrome"
         repeat with t in tabs of w
             if URL of t contains "{MATCH}" then
                 set URL of t to "{url}"
-                return "ok"
+                return "NAVIGATED_EXISTING"
             end if
         end repeat
     end repeat
+    if (count of windows) > 0 then
+        tell window 1
+            make new tab with properties {{URL:"{url}"}}
+            return "OPENED_NEW_TAB"
+        end tell
+    end if
 end tell
-return "NO_TAB"
+return "NO_WINDOW"
 '''
     res = subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
     return res.stdout.strip() + res.stderr.strip()

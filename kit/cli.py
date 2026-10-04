@@ -251,6 +251,12 @@ def main():
     p_serve = subparsers.add_parser("serve", help="Servidor estático local para el motor HTML")
     p_serve.add_argument("--port", type=int, default=4391, help="Puerto local (default: 4391)")
 
+    # flowmusic
+    p_fm = subparsers.add_parser("flowmusic", help="Gestiona y conecta con el proyecto FlowMusic del cliente")
+    p_fm.add_argument("--status", action="store_true", help="Inspecciona pistas y estado del proyecto en Chrome")
+    p_fm.add_argument("--nav", nargs="?", const="", help="Abre o navega Chrome al proyecto FlowMusic")
+    p_fm.add_argument("--import", dest="import_file", help="Importa pista de audio descargada hacia audio/music_flowmusic.wav")
+
     # copy
     subparsers.add_parser("copy", help="Guía para generación de copys multicanal")
 
@@ -288,6 +294,12 @@ def main():
         sys.exit(cmd_exec_tool("share.py", extra + unknown))
     elif args.command == "fix-word":
         sys.exit(cmd_exec_tool("fix_word.py", [args.line_id, args.target_word, args.phonetic_phrase] + unknown))
+    elif args.command == "flowmusic":
+        extra = []
+        if args.status: extra.append("--status")
+        if args.nav is not None: extra += ["--nav", args.nav] if args.nav else ["--nav"]
+        if args.import_file: extra += ["--import", args.import_file]
+        sys.exit(cmd_exec_tool("flowmusic.py", extra + unknown))
     elif args.command == "serve":
         cmd_serve(args)
     elif args.command == "copy":
