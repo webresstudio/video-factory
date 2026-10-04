@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WhatsApp: 5 formas de pagar menos — Webres Studio</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="viewport">
+<div id="stage">
+  <canvas id="bg" width="540" height="960"></canvas>
+
+  <!-- Presenter layer (Flow @me). Preview: <video>; render: pre-extracted frames painted to canvas -->
+  <div id="cam">
+    <canvas id="camc" width="1080" height="1920"></canvas>
+    <div class="scrim"></div>
+  </div>
+
+  <!-- ═════════ L01 · Hook: cada ✓✓ ahora es un cobro ═════════ -->
+  <section class="act" id="s1">
+    <div class="chat" id="s1-chat"></div>
+    <div class="abs hl" id="s1-h1" style="left:84px; top:1188px; font-size:142px" data-split="words">Tus respuestas</div>
+    <div class="abs hl" id="s1-h2" style="left:84px; top:1330px; font-size:142px" data-split="words">ya <span class="serif coral">cuestan.</span></div>
+    <div class="hair" id="s1-hair" style="left:88px; width:904px; top:1520px; transform-origin:left"></div>
+    <div class="abs mono foot" id="s1-foot" style="left:88px; top:1546px" data-split="words">API de WhatsApp · desde el 1 de octubre</div>
+  </section>
+
+  <!-- ═════════ L02 · Presenter ═════════ -->
+  <section class="act over" id="s2">
+    <div class="abs hl sh" id="s2-a" style="left:84px; top:1236px; font-size:96px" data-split="words">Cada mensaje</div>
+    <div class="abs hl sh" id="s2-b" style="left:84px; top:1336px; font-size:96px" data-split="words">de <span class="serif">servicio</span></div>
+    <div class="abs mono foot sh" id="s2-c" style="left:88px; top:1466px" data-split="words">dentro de la ventana de 24 h · se cobra</div>
+    <div class="abs serif num sh" id="s2-5" style="left:640px; top:1010px; font-size:600px">5</div>
+    <div class="abs hl sh" id="s2-d" style="left:84px; top:1260px; font-size:92px" data-split="words">formas de</div>
+    <div class="abs hl sh" id="s2-e" style="left:84px; top:1358px; font-size:92px" data-split="words">pagar <span class="serif teal">menos</span></div>
+  </section>
+
+  <!-- ═════════ L03 · Qué se cobra ═════════ -->
+  <section class="act" id="s3">
+    <div class="abs hl" id="s3-h1" style="left:84px; top:250px; font-size:118px" data-split="words">Te escriben:</div>
+    <div class="abs hl" id="s3-h1b" style="left:84px; top:372px; font-size:118px" data-split="words"><span class="serif teal">gratis.</span></div>
+    <div class="chat" id="s3-chat"></div>
+    <div class="abs hl" id="s3-h2" style="left:84px; top:1330px; font-size:118px" data-split="words">Respondes:</div>
+    <div class="abs hl" id="s3-h2b" style="left:84px; top:1452px; font-size:118px" data-split="words"><span class="serif coral">se cobra.</span></div>
+  </section>
+
+  <!-- ═════════ L04 · 1 · Un solo mensaje ═════════ -->
+  <section class="act" id="s4">
+    <div class="abs serif num" id="s4-n" style="left:-36px; top:120px; font-size:640px">1</div>
+    <div class="abs hl" id="s4-h1" style="left:430px; top:300px; font-size:104px" data-split="words">Un mensaje,</div>
+    <div class="abs hl" id="s4-h2" style="left:430px; top:410px; font-size:104px" data-split="words">no <span class="serif coral">cinco.</span></div>
+    <div class="chat" id="s4-chat"></div>
+    <div class="abs mono foot" id="s4-ct" style="left:88px; top:1500px"><span id="s4-ctn" class="tab">5</span> <span id="s4-ctl">mensajes cobrados</span></div>
+  </section>
+
+  <!-- ═════════ L05 · 2 · Los 1,000 gratis ═════════ -->
+  <section class="act" id="s5">
+    <div class="abs serif num" id="s5-n" style="left:-30px; top:120px; font-size:640px">2</div>
+    <div class="abs hl" id="s5-h1" style="left:440px; top:300px; font-size:110px" data-split="words"><span class="tab">1,000</span></div>
+    <div class="abs hl" id="s5-h2" style="left:440px; top:412px; font-size:110px" data-split="words"><span class="serif teal">gratis</span></div>
+    <div class="abs mono foot" id="s5-sub" style="left:444px; top:552px" data-split="words">cada mes · por número</div>
+    <canvas id="s5-dots" class="abs" width="920" height="580" style="left:80px; top:760px"></canvas>
+    <div class="abs mono foot" id="s5-cnt" style="left:84px; top:1372px"><span id="s5-cntn" class="tab big">0000</span><span class="dim"> / 1,000</span></div>
+    <div class="abs mono foot coral" id="s5-over" style="left:84px; top:1460px" data-split="words">el 1,001 ya se cobra</div>
+  </section>
+
+  <!-- ═════════ L06 · 3 · 72 h gratis (presenter) ═════════ -->
+  <section class="act over" id="s6">
+    <div class="abs serif num sh" id="s6-n" style="left:70px; top:150px; font-size:260px">3</div>
+    <div class="abs hl sh" id="s6-a" style="left:84px; top:1250px; font-size:78px" data-split="words">Llega por un anuncio</div>
+    <div class="abs hl sh" id="s6-b" style="left:84px; top:1336px; font-size:78px" data-split="words"><span class="serif">Click-to-WhatsApp</span></div>
+    <div class="abs mono foot sh" id="s6-c" style="left:88px; top:1450px" data-split="words">o por el botón de tu página de Facebook</div>
+    <svg id="s6-ring" class="abs" width="520" height="520" viewBox="0 0 520 520" style="left:520px; top:1000px">
+      <circle cx="260" cy="260" r="214" fill="none" stroke="rgba(243,238,230,0.16)" stroke-width="2"/>
+      <circle id="s6-arc" cx="260" cy="260" r="214" fill="none" stroke="#00cea7" stroke-width="10" stroke-linecap="round" transform="rotate(-90 260 260)" stroke-dasharray="0 2000"/>
+      <g id="s6-ticks"></g>
+    </svg>
+    <div class="abs hl sh" id="s6-72" style="left:520px; top:1150px; width:520px; text-align:center; font-size:170px"><span class="tab" id="s6-72n">24</span><span class="unit">h</span></div>
+    <div class="abs serif teal sh" id="s6-free" style="left:520px; top:1330px; width:520px; text-align:center; font-size:84px" data-split="words">gratis</div>
+  </section>
+
+  <!-- ═════════ L07 · 4 · Botones, listas, formularios ═════════ -->
+  <section class="act" id="s7">
+    <div class="abs serif num" id="s7-n" style="left:-30px; top:120px; font-size:640px">4</div>
+    <div class="abs hl" id="s7-h1" style="left:430px; top:300px; font-size:104px" data-split="words">Un toque,</div>
+    <div class="abs hl" id="s7-h2" style="left:430px; top:410px; font-size:76px" data-split="words">no una <span class="serif teal">conversación.</span></div>
+    <div id="s7-ghost" class="abs"></div>
+    <div class="chat" id="s7-chat"></div>
+    <div class="sheet" id="s7-sheet">
+      <div class="grab"></div>
+      <div class="st">Tu pedido</div>
+      <div class="fld"><label>Producto</label><div class="in" data-v="Camisa lino"></div></div>
+      <div class="fld"><label>Talla</label><div class="seg"><span>S</span><span class="on">M</span><span>L</span></div></div>
+      <div class="fld"><label>Dirección de envío</label><div class="in" data-v="Zona 10, Ciudad de Guatemala"></div></div>
+      <div class="cta" id="s7-cta">Enviar<i class="rip"></i></div>
+    </div>
+    <svg class="tap" id="s7-tap" viewBox="0 0 120 120"><circle cx="60" cy="60" r="26" fill="rgba(243,238,230,0.9)"/><circle id="s7-tapr" cx="60" cy="60" r="30" fill="none" stroke="rgba(243,238,230,0.8)" stroke-width="3"/></svg>
+  </section>
+
+  <!-- ═════════ L08 · 5 · Plantillas combinadas ═════════ -->
+  <section class="act" id="s8">
+    <div class="abs serif num" id="s8-n" style="left:-30px; top:120px; font-size:640px">5</div>
+    <div class="abs hl" id="s8-h1" style="left:392px; top:300px; font-size:92px" data-split="words">Dos plantillas,</div>
+    <div class="abs hl" id="s8-h2" style="left:392px; top:400px; font-size:92px" data-split="words"><span class="serif teal">un mensaje.</span></div>
+    <div class="chat" id="s8-chat"></div>
+    <div class="abs mono foot" id="s8-ct" style="left:88px; top:1500px"><span id="s8-ctn" class="tab">2</span> <span id="s8-ctl">plantillas cobradas</span></div>
+  </section>
+
+  <!-- ═════════ L09 · App vs API (presenter) ═════════ -->
+  <section class="act over" id="s9">
+    <div class="hair sh" id="s9-r0" style="left:88px; width:904px; top:1196px; transform-origin:left"></div>
+    <div class="abs ic sh" id="s9-i1" style="left:88px; top:1232px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg></div>
+    <div class="abs hl sh" id="s9-a" style="left:180px; top:1226px; font-size:64px" data-split="words">App WhatsApp Business</div>
+    <div class="abs serif teal sh" id="s9-a2" style="left:180px; top:1300px; font-size:64px" data-split="words">nada cambia</div>
+    <div class="hair sh" id="s9-r1" style="left:88px; width:904px; top:1404px; transform-origin:left"></div>
+    <div class="abs ic sh" id="s9-i2" style="left:88px; top:1440px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg></div>
+    <div class="abs hl sh" id="s9-b" style="left:180px; top:1434px; font-size:64px" data-split="words">API de WhatsApp</div>
+    <div class="abs serif sh" id="s9-b2" style="left:180px; top:1508px; font-size:64px" data-split="words">registra un método de pago</div>
+  </section>
+
+  <!-- ═════════ L10 · Webres Studio ═════════ -->
+  <section class="act" id="s10">
+    <div class="emblem" id="s10-emblem"></div>
+    <div class="abs center-x hl" id="s10-a" style="top:1004px; font-size:74px" data-split="words">Automatizamos tu WhatsApp.</div>
+    <div class="abs center-x serif" id="s10-b" style="top:1130px; font-size:132px" data-split="words">cada respuesta</div>
+    <div class="abs center-x hl" id="s10-c" style="top:1262px; font-size:150px" data-split="words"><span class="teal">cuenta.</span></div>
+    <div class="hair" id="s10-hair" style="left:390px; width:300px; top:1466px"></div>
+    <div class="abs center-x mono foot" id="s10-handle" style="top:1494px" data-split="chars">@webresstudio</div>
+  </section>
+
+  <!-- transition overlays -->
+  <div id="louvers"><i></i><i></i><i></i></div>
+  <div id="ribbon"><i class="r1"></i><i class="r2"></i></div>
+  <div id="laser"></div>
+  <div id="splitLine"></div>
+  <div id="knifeLine"></div>
+  <div id="flash"></div>
+  <div id="fade"></div>
+  <div id="sync"></div>
+</div>
+</div>
+
+<div id="hud">
+  <button id="play" type="button">Reproducir</button>
+  <input id="scrub" type="range" min="0" max="60" step="0.01" value="0" aria-label="Línea de tiempo">
+  <span id="clock">00.00</span>
+</div>
+<video id="camv" muted playsinline preload="auto"></video>
+<audio id="audio" src="audio/master.m4a" preload="auto"></audio>
+<script src="timing.js"></script>
+<script src="engine.js"></script>
+</body>
+</html>

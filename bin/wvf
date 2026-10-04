@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# WVF — Webres Video Factory CLI Runner
+# Precision automated vertical video pipeline for high-retention explainers.
+# ==============================================================================
+set -e
+
+# Resolve installation root
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do
+  DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+WVF_ROOT="$( cd -P "$( dirname "$SOURCE" )/.." >/dev/null 2>&1 && pwd )"
+
+# Resolve python environment
+if [ -f "$WVF_ROOT/.venv/bin/python3" ]; then
+  PYTHON="$WVF_ROOT/.venv/bin/python3"
+elif [ -f "$WVF_ROOT/../ads/.venv/bin/python3" ]; then
+  PYTHON="$WVF_ROOT/../ads/.venv/bin/python3"
+elif command -v python3 >/dev/null 2>&1; then
+  PYTHON="$(command -v python3)"
+else
+  echo "❌ Error: Python 3 no encontrado. Ejecuta ./install.sh" >&2
+  exit 1
+fi
+
+export PYTHONPATH="$WVF_ROOT/kit/tools:$PYTHONPATH"
+exec "$PYTHON" "$WVF_ROOT/kit/cli.py" "$@"

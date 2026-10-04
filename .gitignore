@@ -1,0 +1,23 @@
+# Python & Virtualenv
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# OS & IDE
+.DS_Store
+.vscode/
+.idea/
+
+# Video and Audio artifacts (heavy binaries)
+*.mp4
+*.m4a
+*.wav
+*.mov
+!kit/templates/default/wbrs-emblem.svg
+
+# Scratch & Temporary outputs
+scratch/
+render_segments/
+check/
+frames/
