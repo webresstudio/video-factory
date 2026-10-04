@@ -13,7 +13,7 @@ import subprocess
 import sys
 from env_config import get_ffprobe
 
-HERE = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+HERE = os.getcwd()
 
 def probe_file(path):
     ffprobe = get_ffprobe()

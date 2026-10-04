@@ -157,7 +157,10 @@ WVF is the official video production standard of **Webres Studio**. It replaces 
 
 ```bash
 wvf doctor                                    # Verify system tools, Chrome, and skills
-wvf new "project-name" [--from <folder>]      # Scaffold project
+wvf init [--client <name>]                    # Initialize WVF directly in current directory
+wvf start [--port 4391]                       # Launch dashboard and live preview in Chrome
+wvf media [add <files...> | list]             # Manage and catalog project media assets
+wvf new "project-name" [--from <folder>]      # Scaffold project in a new folder
 wvf ingest                                    # Ingest research and media assets
 wvf timeline                                  # Align vocal track and generate timing.js
 wvf cues                                      # Export window.CUES to audio/cues.json

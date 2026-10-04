@@ -113,6 +113,184 @@ def cmd_doctor(args):
     return 0 if ok else 1
 
 
+def cmd_init(args):
+    dest = os.path.abspath(args.path or os.getcwd())
+    print_banner()
+    print(f"🎬 [wvf init] Inicializando Video Factory en: {dest}")
+
+    if os.path.isfile(os.path.join(dest, "engine.js")) and not args.force:
+        print("⚠️ Advertencia: Ya existe un proyecto inicializado en este directorio.")
+        print("   Usa --force para sobreescribir los archivos de plantilla.")
+        return 0
+
+    # Copiar archivos de plantilla sin sobreescribir si ya existen
+    for item in os.listdir(TEMPLATE_DIR):
+        s = os.path.join(TEMPLATE_DIR, item)
+        d = os.path.join(dest, item)
+        if os.path.isdir(s):
+            if not os.path.exists(d):
+                shutil.copytree(s, d)
+        else:
+            if not os.path.exists(d) or args.force:
+                shutil.copy2(s, d)
+
+    # Copiar herramientas a ./tools
+    tools_dest = os.path.join(dest, "tools")
+    if os.path.exists(tools_dest):
+        shutil.rmtree(tools_dest)
+    shutil.copytree(TOOLS_DIR, tools_dest)
+
+    # Crear carpetas operativas
+    for d in ("prompts", "flow", "frames", "audio", "check", "render_segments", "share", "scratch", "inputs/research", "inputs/media"):
+        os.makedirs(os.path.join(dest, d), exist_ok=True)
+
+    # Configuración de cliente
+    client_name = args.client or "Webres Studio"
+    flow_url = args.flow_url or "https://flow.google.com/"
+    flowmusic_url = args.flowmusic_url or "https://www.flowmusic.app/project/95ce230f-9803-487f-b83d-cfcf3e58e405"
+
+    cfg = {
+        "client_name": client_name,
+        "flow": {
+            "project_url": flow_url,
+            "likeness_label": "Yo"
+        },
+        "flowmusic": {
+            "project_url": flowmusic_url,
+            "preferred_track": "Tech Commercial",
+            "ducking_db": -9.5,
+            "use_imported_track": True
+        }
+    }
+    cfg_file = os.path.join(dest, "project_config.json")
+    with open(cfg_file, "w", encoding="utf-8") as fh:
+        json.dump(cfg, fh, indent=2, ensure_ascii=False)
+
+    # Ingestar insumos si se especificó --from
+    if args.from_dir:
+        src_from = os.path.abspath(args.from_dir)
+        if os.path.isdir(src_from):
+            print(f"📥 Copiando insumos iniciales desde: {src_from}...")
+            inp_res = os.path.join(dest, "inputs", "research")
+            inp_med = os.path.join(dest, "inputs", "media")
+            for root, _, files in os.walk(src_from):
+                for f in files:
+                    full = os.path.join(root, f)
+                    ext = os.path.splitext(f)[1].lower()
+                    if ext in (".md", ".txt", ".pdf", ".docx", ".json"):
+                        shutil.copy2(full, os.path.join(inp_res, f))
+                    elif ext in (".png", ".jpg", ".jpeg", ".webp", ".svg", ".mp4", ".mov", ".wav", ".mp3"):
+                        shutil.copy2(full, os.path.join(inp_med, f))
+            subprocess.run([sys.executable, os.path.join(dest, "tools", "ingest.py")], cwd=dest)
+
+    print(f"\n✅ Video Factory inicializado exitosamente para: {client_name}")
+    print("👉 Puedes lanzar el entorno interactivo de producción con:")
+    print("   wvf start")
+    return 0
+
+
+def cmd_start(args):
+    cwd = os.getcwd()
+    engine_file = os.path.join(cwd, "engine.js")
+    if not os.path.isfile(engine_file):
+        sys.exit("❌ Error: wvf start debe ejecutarse dentro de un proyecto inicializado.\n   Ejecuta 'wvf init' o 'wvf new <nombre>' primero.")
+
+    print_banner()
+    print(f"🚀 [wvf start] Iniciando entorno de producción y vista previa...")
+
+    # Diagnóstico del proyecto
+    has_brief = os.path.isfile(os.path.join(cwd, "inputs", "brief.md"))
+    has_facts = os.path.isfile(os.path.join(cwd, "facts.md"))
+    has_script = os.path.isfile(os.path.join(cwd, "script.json"))
+    has_timing = os.path.isfile(os.path.join(cwd, "timing.js"))
+    has_master_audio = os.path.isfile(os.path.join(cwd, "audio", "master.wav"))
+    cands_video = glob.glob(os.path.join(cwd, "*_master.mp4")) + glob.glob(os.path.join(cwd, "*.mp4"))
+
+    print("\n📊 Estado actual del proyecto:")
+    print(f"  {'✓' if has_brief or has_facts else '○'} 1. Ingesta:    {'facts.md disponible' if has_facts else 'Pendiente (wvf ingest)'}")
+    print(f"  {'✓' if has_script else '○'} 2. Guion:      {'script.json listo' if has_script else 'Pendiente'}")
+    print(f"  {'✓' if has_timing else '○'} 3. Timeline:   {'timing.js sincronizado' if has_timing else 'Pendiente (wvf timeline)'}")
+    print(f"  {'✓' if has_master_audio else '○'} 4. Audio:      {'master.wav (-14 LUFS) listo' if has_master_audio else 'Pendiente (wvf audio)'}")
+    print(f"  {'✓' if cands_video else '○'} 5. Video:      {os.path.basename(cands_video[0]) if cands_video else 'Pendiente de render (wvf render)'}")
+
+    port = args.port
+    preview_url = f"http://127.0.0.1:{port}/index.html"
+    print(f"\n🌐 Servidor de previsualización en: {preview_url}")
+
+    # Abrir navegador si no se pide silenciar
+    if not args.no_open:
+        subprocess.run(["open", preview_url], capture_output=True)
+
+    # Iniciar servidor estático
+    import http.server
+    import socketserver
+    Handler = http.server.SimpleHTTPRequestHandler
+    with socketserver.TCPServer(("", port), Handler) as httpd:
+        print(f"✓ Servidor activo en puerto {port}. Presiona Ctrl+C para detener.")
+        try:
+            httpd.serve_forever()
+        except KeyboardInterrupt:
+            print("\nServidor detenido.")
+    return 0
+
+
+def cmd_media(args):
+    cwd = os.getcwd()
+    med_dir = os.path.join(cwd, "inputs", "media")
+    os.makedirs(med_dir, exist_ok=True)
+
+    action = getattr(args, "media_action", None) or "list"
+    files = getattr(args, "files", [])
+
+    if action == "add" or files:
+        targets = files if files else []
+        if not targets:
+            print("⚠️ Debes especificar al menos un archivo para agregar. Ejemplo: wvf media add logo.png clip.mp4")
+            return 1
+
+        print(f"📥 [wvf media add] Agregando {len(targets)} archivo(s) a inputs/media/...")
+        for t in targets:
+            if os.path.isfile(t):
+                dest = os.path.join(med_dir, os.path.basename(t))
+                shutil.copy2(t, dest)
+                print(f"  ✓ Copiado: {os.path.basename(t)}")
+            else:
+                print(f"  ❌ Archivo no encontrado: {t}")
+
+        # Ejecutar auto-ingest
+        print("\n⚙️ Catalogando activos multimedia...")
+        tool = os.path.join(cwd, "tools", "ingest.py")
+        if not os.path.isfile(tool):
+            tool = os.path.join(TOOLS_DIR, "ingest.py")
+        subprocess.run([sys.executable, tool], cwd=cwd)
+
+    # List / Inspect
+    cat_file = os.path.join(cwd, "media_catalog.json")
+    if not os.path.isfile(cat_file):
+        tool = os.path.join(cwd, "tools", "ingest.py")
+        if not os.path.isfile(tool):
+            tool = os.path.join(TOOLS_DIR, "ingest.py")
+        subprocess.run([sys.executable, tool], cwd=cwd)
+
+    if os.path.isfile(cat_file):
+        items = json.load(open(cat_file, encoding="utf-8"))
+        print(f"\n📂 [wvf media] Catálogo de Activos Multimedia ({len(items)} activos en inputs/media/):")
+        if not items:
+            print("  (No hay archivos en inputs/media/ todavía. Usa: wvf media add <archivos...>)")
+            return 0
+        print(f"  {'NOMBRE':<28} {'TIPO':<8} {'DIMENSIONES':<12} {'DURACIÓN':<10} {'ENFOQUE / AJUSTE'}")
+        print("  " + "-" * 78)
+        for it in items:
+            name = it.get("name", "")[:26]
+            mtype = it.get("type", "")
+            dims = f"{it.get('width','?')}x{it.get('height','?')}" if it.get('width') else "-"
+            dur = f"{it.get('duration')}s" if it.get("duration") else "-"
+            note = it.get("fit_note", "")
+            print(f"  {name:<28} {mtype:<8} {dims:<12} {dur:<10} {note}")
+        print()
+    return 0
+
+
 def cmd_new(args):
     name = args.name
     dest = os.path.abspath(args.path or os.path.join(os.getcwd(), name))
@@ -155,7 +333,7 @@ def cmd_new(args):
     print("👉 Siguientes pasos recomendados:")
     print(f"   1. cd '{os.path.relpath(dest)}'")
     print("   2. Revisa o edita inputs/brief.md")
-    print("   3. Pide al agente o ejecuta: wvf ingest && wvf script")
+    print("   3. Inicia el entorno con: wvf start")
 
 
 def cmd_exec_tool(script_name, extra_args):
@@ -202,6 +380,25 @@ def main():
 
     # doctor
     subparsers.add_parser("doctor", help="Verifica el entorno, dependencias y skills")
+
+    # init
+    p_init = subparsers.add_parser("init", help="Inicializa Video Factory directamente en el directorio actual")
+    p_init.add_argument("--path", help="Ruta de destino alternativa (default: actual)")
+    p_init.add_argument("--client", help="Nombre del cliente o marca (default: Webres Studio)")
+    p_init.add_argument("--flow-url", help="URL del proyecto en Google Flow")
+    p_init.add_argument("--flowmusic-url", help="URL del proyecto en FlowMusic")
+    p_init.add_argument("--from", dest="from_dir", help="Directorio con archivos de investigación o medios para auto-importar")
+    p_init.add_argument("--force", action="store_true", help="Sobreescribe archivos de plantilla existentes")
+
+    # start
+    p_start = subparsers.add_parser("start", help="Lanza el entorno de producción, dashboard de estado y vista previa en Chrome")
+    p_start.add_argument("--port", type=int, default=4391, help="Puerto del servidor local (default: 4391)")
+    p_start.add_argument("--no-open", action="store_true", help="No abrir automáticamente el navegador")
+
+    # media
+    p_media = subparsers.add_parser("media", help="Gestiona, inspecciona y agrega insumos multimedia (fotos, videos, logos)")
+    p_media.add_argument("media_action", nargs="?", default="list", choices=["list", "add", "inspect"], help="Acción: list, add, inspect")
+    p_media.add_argument("files", nargs="*", help="Archivos a agregar (ej: wvf media add logo.png)")
 
     # new
     p_new = subparsers.add_parser("new", help="Crea un nuevo proyecto de video")
@@ -269,6 +466,12 @@ def main():
 
     if args.command == "doctor":
         sys.exit(cmd_doctor(args))
+    elif args.command == "init":
+        sys.exit(cmd_init(args))
+    elif args.command == "start":
+        sys.exit(cmd_start(args))
+    elif args.command == "media":
+        sys.exit(cmd_media(args))
     elif args.command == "new":
         cmd_new(args)
     elif args.command == "ingest":

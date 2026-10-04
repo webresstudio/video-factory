@@ -144,39 +144,44 @@ O simplemente **arrastra los archivos al chat**.
 Cualquier agente (Antigravity, Cursor, Claude Code) cuenta con herramientas atómicas para avanzar fase por fase.
 
 ```bash
-# 1. Crear nuevo proyecto
+# 1. Inicializar o crear proyecto
 wvf new "whatsapp-ahorro" --from ~/Downloads/brief_pack
+# O inicializar directamente en la carpeta actual:
+# wvf init --client "Acme Corp"
 
-# 2. Ingestar y validar insumos
-cd whatsapp-ahorro
-wvf ingest
+# 2. Gestionar medios (fotos, videos, logos)
+wvf media add ~/Downloads/grafica.png ~/Downloads/logo.svg
+wvf media list
 
-# 3. Alineación vocal y sincronización temporal
+# 3. Lanzar entorno de producción y vista previa en vivo
+wvf start
+
+# 4. Alineación vocal y sincronización temporal
 wvf timeline
 
-# 4. Extraer eventos de animación al bus de audio
+# 5. Extraer eventos de animación al bus de audio
 wvf cues
 
-# 5. Conectar e importar música de FlowMusic (opcional)
+# 6. Conectar e importar música de FlowMusic (opcional)
 wvf flowmusic --status
 wvf flowmusic --import ~/Downloads/tech_commercial.mp3
 
-# 6. Generar música armónica / FlowMusic y SFX sintetizados (-14 LUFS con ducking)
+# 7. Generar música armónica / FlowMusic y SFX sintetizados (-14 LUFS con ducking)
 wvf audio
 
-# 7. Inspección visual rápida de frames
+# 8. Inspección visual rápida de frames
 wvf frames 1.5 7.8 14.2 24.5
 
-# 8. Render final 60 fps determinista por CDP
+# 9. Render final 60 fps determinista por CDP
 wvf render --workers 4 --fps 60
 
-# 9. Auditoría técnica y claridad vocal
+# 10. Auditoría técnica y claridad vocal
 wvf qa
 
-# 10. Compresión móvil y distribución
+# 11. Compresión móvil y distribución
 wvf share --send-wa --contact "William Romero"
 
-# 11. Corrección quirúrgica de una palabra (e.g. 'API' por 'ápi')
+# 12. Corrección quirúrgica de una palabra (e.g. 'API' por 'ápi')
 wvf fix-word L09 "API" "Pero si usas la ápi..."
 ```
 
