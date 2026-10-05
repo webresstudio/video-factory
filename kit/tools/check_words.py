@@ -2,7 +2,8 @@
 """List every W()/WE() word lookup in engine.js that is missing from the whisper transcripts."""
 import json, os, re, unicodedata
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+from env_config import get_project_root
+ROOT = get_project_root()
 src = open(os.path.join(ROOT, "engine.js"), encoding="utf-8").read()
 
 

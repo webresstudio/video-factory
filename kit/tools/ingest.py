@@ -63,11 +63,11 @@ def main():
         brief_content = open(brief_file, encoding="utf-8").read()
         print("📄 Brief detectado.")
 
-    facts_path = os.path.join(HERE, "facts.md")
+    facts_path = os.path.join(HERE, "facts_candidates.md")
     with open(facts_path, "w", encoding="utf-8") as fh:
-        fh.write("# Hechos Verificados para Guion (Fact Check)\n\n")
+        fh.write("# Candidatos extraídos — pendientes de verificación\n\n")
         fh.write("> [!IMPORTANT]\n")
-        fh.write("> Solo los hechos listados aquí pueden usarse en el guion. Cero cifras o porcentajes inventados.\n\n")
+        fh.write("> Estas notas no están verificadas. Confirmar fuentes antes de incorporarlas a facts.md.\n\n")
         fh.write(f"Archivos analizados: {len(research_files)}\n\n")
         if facts_found:
             fh.write("## Hechos Extraídos:\n")
@@ -76,7 +76,11 @@ def main():
         else:
             fh.write("*(No se detectaron viñetas directas; redactar hechos confirmados manualmente aquí)*\n")
 
-    print(f"✅ facts.md generado con {len(facts_found)} hechos preliminares.")
+    verified = os.path.join(HERE, "facts.md")
+    if not os.path.exists(verified):
+        with open(verified, "x", encoding="utf-8") as fh:
+            fh.write("# Hechos verificados\n\nAñadir únicamente hechos confirmados, con su fuente y fecha de verificación.\n")
+    print(f"✅ facts_candidates.md: {len(facts_found)} candidatos. facts.md conservado.")
 
     # 2. Analizar medios
     media_catalog = []

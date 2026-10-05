@@ -49,3 +49,12 @@ def get_chrome():
 def get_python():
     # If running inside a venv, sys.executable is already the right python
     return sys.executable
+
+
+def get_project_root():
+    """Tools operate on the current project even when invoked from the installed kit."""
+    return os.path.abspath(os.environ.get("WVF_PROJECT_ROOT", os.getcwd()))
+
+
+def get_preview_url():
+    return os.environ.get("WVF_PREVIEW_URL", "http://127.0.0.1:4391/index.html?render=1")

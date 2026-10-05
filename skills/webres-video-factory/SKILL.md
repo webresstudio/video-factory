@@ -16,12 +16,12 @@ WVF is the official video production standard of **Webres Studio**. It replaces 
 ## 🏛️ The 4 Non-Negotiable Laws of WVF
 
 1. **Deterministic Render (`renderAt(t)` as a Pure Function):**
-   Videos are NEVER recorded in real time. Every single frame is evaluated through `window.renderAt(t)`. The exact same timestamp `t` must render the exact same pixels on any machine.
+   Videos are NEVER recorded in real time. Every single frame is evaluated through `window.renderAt(t)`. Repeated timestamps must reproduce the same frame in the tested browser/runtime. Pin the runtime and assets when reproducibility across machines is required.
 2. **Word-Level Micro-Synchronization:**
-   Animation events, counter rolls, icon strikes, and transition cuts do NOT use arbitrary timers. They trigger strictly on the millisecond where the presenter pronounces that specific word, queried through `W("Lxx", "palabra")`.
+   Animation events, counter rolls, icon strikes, and transition cuts do NOT use arbitrary timers. They trigger strictly on the millisecond where the presenter pronounces that specific word, queried through `W("Lxx", "palabra")`. Whisper timestamps are estimates, stored with three decimals; validate speech alignment by listening.
 3. **Zero-Slop Fact-Checking:**
    Never invent statistics, percentages, or pricing tiers. Only facts validated in `facts.md` are permitted in the script.
-4. **Broadcast Audio Standards:**
+4. **Streaming Audio Delivery:**
    Final audio must be 48 kHz stereo normalized to **-14 LUFS (±1.0 LUFS)** with True Peak **≤ -1.0 dBTP** under ITU-R BS.1770 / EBU R128. Music must automatically duck under vocals by -8 dB to -10 dB.
 
 ---
@@ -44,7 +44,7 @@ WVF is the official video production standard of **Webres Studio**. It replaces 
   ```bash
   wvf ingest
   ```
-* Generates `facts.md` and `media_catalog.json`.
+* Generates `facts_candidates.md` and `media_catalog.json`; preserves `facts.md`. Extracted bullets are unverified candidates. Confirm sources and dates before adding facts to `facts.md`. PDF/DOCX extraction is not built into ingest; extract these documents with appropriate document tools first.
 
 ### Phase 2: Scriptwriting (`script.json`)
 * Structure: 8–10 lines of 8–10 seconds each (18–22 words per line).
@@ -72,7 +72,7 @@ WVF is the official video production standard of **Webres Studio**. It replaces 
   ```bash
   wvf timeline
   ```
-* Trims pre-speech and post-speech dead zones.
+* Trims pre-speech and post-speech dead zones. Extracts 24 fps camera frames from the 1080p clip when available, otherwise from the downloaded clip.
 * Compresses quiet pauses on voiceover-only lines.
 * Outputs `audio/voice.wav` and `timing.js`.
 
@@ -131,14 +131,14 @@ WVF is the official video production standard of **Webres Studio**. It replaces 
   ```bash
   wvf qa
   ```
-* Confirms 1080x1920, 60.0 fps, -14 LUFS, and transcribes final audio with Whisper to verify 100% pronunciation accuracy.
+* Rejects technical noncompliance and compares the final Whisper transcription against `script.json` (or `spoken_text` when provided), with a default maximum word error rate of 5%. A missing transcription fails full QA. `--technical-only` explicitly limits the audit to technical measurements. Inspect `check/qa_report.json`, review the contact sheet and listen before publishing; transcription does not prove pronunciation accuracy.
 
 ### Phase 9: Mobile Compression & Distribution
-* Compress to lightweight version (<15MB):
+* Compress to lightweight version (<15 MiB), using duration-based two-pass bitrate and an enforced output-size check:
   ```bash
   wvf share
   ```
-* Optionally send directly to WhatsApp Web self-chat:
+* Only when the user explicitly authorizes sending, send to the WhatsApp Web chat already selected in Chrome. Its title must match the requested contact:
   ```bash
   wvf share --send-wa --contact "William Romero"
   ```
@@ -172,3 +172,13 @@ wvf qa                                        # Technical compliance & Whisper a
 wvf share [--send-wa]                         # Compress & send to WhatsApp
 wvf fix-word <Lxx> <word> <phonetic_phrase>   # Surgical vocal patch
 ```
+
+## Initialization, updates and repair
+
+The default template is a complete WhatsApp example, not a generic scene generator. Adapt factual content, DOM and word anchors for each new topic. Fresh previews estimate word times and display an example notice. Render mode rejects missing `timing.js`; demo timing must never be used to publish a video.
+
+`wvf init` preserves existing configuration and custom tools; `--force` explicitly refreshes distributed template/tool files. The installer preserves existing custom skills. Use `wvf --version` to identify the installed release.
+
+`wvf fix-word` is for voiceover-only lines. It validates the existing word before generation, supports `--patch-file`, `--patch-word`, `--patch-words` and `--occurrence`, backs up the original audio and timestamps, replaces the word within its original interval, and rebuilds the timeline. For on-camera lines regenerate the whole take to preserve lip sync. After patching, rebuild audio, render and QA; the previous master remains unchanged until these commands run.
+
+Do not generate Flow clips or send WhatsApp messages as a software smoke test. Use `tests/test_regressions.py` and `tests/smoke_pipeline.py`; the latter exercises the actual local pipeline with synthetic test narration. External connectors still require a signed-in compatible UI session.

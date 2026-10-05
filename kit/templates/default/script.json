@@ -1,72 +1,74 @@
 [
- {
-  "id": "L01",
-  "dur": "8",
-  "cam": false,
-  "acting": "Serious, slightly urgent expression, leaning a little toward the camera.",
-  "text": "Si tu negocio usa la API de WhatsApp, desde el 1 de octubre tus respuestas ya cuestan."
- },
- {
-  "id": "L02",
-  "dur": "10",
-  "cam": true,
-  "acting": "Natural confident expression, subtle hand gesture on the word \"cinco\".",
-  "text": "Meta ahora cobra cada mensaje de servicio dentro de la ventana de 24 horas. Pero hay cinco formas de pagar mucho menos."
- },
- {
-  "id": "L03",
-  "dur": "8",
-  "cam": false,
-  "acting": "Calm explanatory expression.",
-  "text": "Lo que tus clientes te escriben sigue siendo gratis. Lo que se cobra es cada mensaje que tú envías."
- },
- {
-  "id": "L04",
-  "dur": "8",
-  "cam": false,
-  "acting": "Raises one finger at the start, friendly and direct.",
-  "text": "Uno: no mandes cinco burbujas. Cada mensaje entregado cuenta, así que responde todo en uno solo."
- },
- {
-  "id": "L05",
-  "dur": "8",
-  "cam": false,
-  "acting": "Raises two fingers at the start, upbeat.",
-  "text": "Dos: los primeros mil mensajes de servicio de cada mes son gratis por número. Mídelos y aprovéchalos."
- },
- {
-  "id": "L06",
-  "dur": "8",
-  "cam": true,
-  "acting": "Raises three fingers at the start, then a small open-palm gesture, with a knowing smile.",
-  "text": "Tres: si tu cliente llega desde un anuncio de clic a WhatsApp, se abren setenta y dos horas gratis."
- },
- {
-  "id": "L07",
-  "dur": "10",
-  "cam": false,
-  "acting": "Raises four fingers at the start, energetic.",
-  "text": "Cuatro: usa botones, listas y formularios dentro del chat. Resuelves en un toque lo que antes era una conversación entera."
- },
- {
-  "id": "L08",
-  "dur": "8",
-  "cam": false,
-  "acting": "Raises five fingers at the start, confident.",
-  "text": "Cinco: junta tus plantillas. Confirmación y número de guía en un solo mensaje, no en dos."
- },
- {
-  "id": "L09",
-  "dur": "10",
-  "cam": true,
-  "acting": "Calm, sincere advice tone, small nod at the end.",
-  "text": "Si usas la app de WhatsApp Business, nada cambia. Pero si usas la A-P-I, registra un método de pago para que tus respuestas no se detengan."
- },
- {
-  "id": "L10",
-  "dur": "6",
-  "cam": false,
-  "acting": "Warm confident smile.",
-  "text": "En Webres Studio automatizamos tu WhatsApp. Porque ahora, cada respuesta cuenta."
- }
+  {
+    "id": "L01",
+    "dur": "8",
+    "cam": false,
+    "acting": "Serious, slightly urgent expression, leaning a little toward the camera.",
+    "text": "Si tu negocio usa la API de WhatsApp, desde el 1 de octubre tus respuestas ya cuestan.",
+    "spoken_text": "Si tu negocio usa la ápi de WhatsApp, desde el 1 de octubre tus respuestas ya cuestan."
+  },
+  {
+    "id": "L02",
+    "dur": "10",
+    "cam": true,
+    "acting": "Natural confident expression, subtle hand gesture on the word \"cinco\".",
+    "text": "Meta ahora cobra cada mensaje de servicio dentro de la ventana de 24 horas. Pero hay cinco formas de pagar mucho menos."
+  },
+  {
+    "id": "L03",
+    "dur": "8",
+    "cam": false,
+    "acting": "Calm explanatory expression.",
+    "text": "Lo que tus clientes te escriben sigue siendo gratis. Lo que se cobra es cada mensaje que tú envías."
+  },
+  {
+    "id": "L04",
+    "dur": "8",
+    "cam": false,
+    "acting": "Raises one finger at the start, friendly and direct.",
+    "text": "Uno: no mandes cinco burbujas. Cada mensaje entregado cuenta, así que responde todo en uno solo."
+  },
+  {
+    "id": "L05",
+    "dur": "8",
+    "cam": false,
+    "acting": "Raises two fingers at the start, upbeat.",
+    "text": "Dos: los primeros mil mensajes de servicio de cada mes son gratis por número. Mídelos y aprovéchalos."
+  },
+  {
+    "id": "L06",
+    "dur": "8",
+    "cam": true,
+    "acting": "Raises three fingers at the start, then a small open-palm gesture, with a knowing smile.",
+    "text": "Tres: si tu cliente llega desde un anuncio de clic a WhatsApp, se abren setenta y dos horas gratis."
+  },
+  {
+    "id": "L07",
+    "dur": "10",
+    "cam": false,
+    "acting": "Raises four fingers at the start, energetic.",
+    "text": "Cuatro: usa botones, listas y formularios dentro del chat. Resuelves en un toque lo que antes era una conversación entera."
+  },
+  {
+    "id": "L08",
+    "dur": "8",
+    "cam": false,
+    "acting": "Raises five fingers at the start, confident.",
+    "text": "Cinco: junta tus plantillas. Confirmación y número de guía en un solo mensaje, no en dos."
+  },
+  {
+    "id": "L09",
+    "dur": "10",
+    "cam": true,
+    "acting": "Calm, sincere advice tone, small nod at the end.",
+    "text": "Si usas la app de WhatsApp Business, nada cambia. Pero si usas la A-P-I, registra un método de pago para que tus respuestas no se detengan.",
+    "spoken_text": "Si usas la app de WhatsApp Business, nada cambia. Pero si usas la ápi, registra un método de pago para que tus respuestas no se detengan."
+  },
+  {
+    "id": "L10",
+    "dur": "6",
+    "cam": false,
+    "acting": "Warm confident smile.",
+    "text": "En Webres Studio automatizamos tu WhatsApp. Porque ahora, cada respuesta cuenta."
+  }
 ]

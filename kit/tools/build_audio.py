@@ -13,7 +13,8 @@ import numpy as np
 import soundfile as sf
 from scipy.signal import butter, sosfilt, fftconvolve
 
-HERE = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+from env_config import get_project_root
+HERE = get_project_root()
 AUD = os.path.join(HERE, "audio")
 SR = 48000
 from env_config import get_ffmpeg
@@ -85,18 +86,22 @@ def verb(x, wet=0.3):
 # harmony follows the story: cost (minor, tense) -> free (brighter) -> five tips (pulse) -> resolution (D major)
 def _sec(a, b, notes, root):
     return (LT[a] - 0.15 if a != "start" else 0.0, (LT[b] - 0.1) if b != "end" else DUR + 0.5, notes, root)
-SECTIONS = [
-    _sec("start", "L02", ["D3", "A3", "F4", "C5", "E5"], "D2"),       # L01 your replies cost
-    _sec("L02", "L03", ["Bb2", "F3", "D4", "A4", "C5"], "Bb1"),       # L02 Meta charges... 5 ways
-    _sec("L03", "L04", ["F3", "C4", "A4", "G5", "E5"], "F2"),         # L03 incoming is free
-    _sec("L04", "L05", ["G3", "D4", "Bb4", "F5", "A5"], "G2"),        # 1 one message
-    _sec("L05", "L06", ["F3", "C4", "A4", "E5", "G5"], "F2"),         # 2 first 1,000 free
-    _sec("L06", "L07", ["Bb2", "F3", "D4", "A4", "E5"], "Bb1"),       # 3 72 h
-    _sec("L07", "L08", ["G3", "D4", "Bb4", "F5", "A5"], "G2"),        # 4 buttons / flows
-    _sec("L08", "L09", ["A3", "E4", "C#5", "E5", "A5"], "A2"),        # 5 merge templates (dominant)
-    _sec("L09", "L10", ["Bb2", "F3", "D4", "A4", "C5"], "Bb1"),       # app vs API
-    _sec("L10", "end", ["D3", "A3", "F#4", "E5", "A5"], "D2"),        # Webres Studio (D major)
+HARMONIES = [
+    (["D3", "A3", "F4", "C5", "E5"], "D2"),
+    (["Bb2", "F3", "D4", "A4", "C5"], "Bb1"),
+    (["F3", "C4", "A4", "G5", "E5"], "F2"),
+    (["G3", "D4", "Bb4", "F5", "A5"], "G2"),
+    (["F3", "C4", "A4", "E5", "G5"], "F2"),
 ]
+line_ids = list(LT)
+SECTIONS = []
+for i, line in enumerate(line_ids):
+    notes, root = HARMONIES[i % len(HARMONIES)]
+    start = max(0, LT[line] - 0.15)
+    end = LT[line_ids[i+1]] - 0.1 if i+1 < len(line_ids) else DUR + 0.5
+    if i+1 == len(line_ids):
+        notes, root = ["D3", "A3", "F#4", "E5", "A5"], "D2"
+    SECTIONS.append((start, end, notes, root))
 
 
 def section_env(n, a, b, att=0.7, rel=0.9):
@@ -108,7 +113,11 @@ def section_env(n, a, b, att=0.7, rel=0.9):
 def build_music():
     flowmusic_track = os.path.join(AUD, "music_flowmusic.wav")
     imported_track = os.path.join(AUD, "music_imported.wav")
+    config_path = os.path.join(HERE, "project_config.json")
+    preferences = json.load(open(config_path, encoding="utf-8")).get("flowmusic", {}) if os.path.isfile(config_path) else {}
     active_track = flowmusic_track if os.path.isfile(flowmusic_track) else (imported_track if os.path.isfile(imported_track) else None)
+    if not preferences.get("use_imported_track", True):
+        active_track = None
 
     if active_track:
         print(f"🎵 Usando pista de FlowMusic / externa: {os.path.basename(active_track)}")
@@ -145,7 +154,7 @@ def build_music():
     beat = 60 / 112
     pulse = np.zeros(N)
     pump = np.ones(N)
-    for start, end in ((LT['L04'] + 0.1, LT['L06'] - 0.4), (LT['L07'] + 0.1, LT['L09'] - 0.4)):
+    for start, end in [(LT[a]+0.1, LT[b]-0.4) for a,b in (("L04", "L06"), ("L07", "L09")) if a in LT and b in LT]:
         k = start
         while k < end:
             s = int(k * SR)
@@ -162,8 +171,8 @@ def build_music():
 
     # arpegio pluck en Sonnet (semicorcheas)
     arp_notes = [note(x) for x in ["G5", "D6", "Bb5", "A5", "D6", "Bb5", "F6", "D6"]]
-    k, i = LT['L07'] + 0.1, 0
-    while k < LT['L08'] - 0.3:
+    k, i = LT.get("L07", DUR) + 0.1, 0
+    while k < LT.get("L08", DUR) - 0.3:
         s = int(k * SR)
         n = int(0.22 * SR)
         tt = t_axis(n)
@@ -377,7 +386,12 @@ def main():
     envv = np.abs(v)
     envv = lp(envv, 6, order=1)
     envv = envv / (envv.max() + 1e-9)
-    duck = 1 - 0.68 * np.clip(envv * 3.2, 0, 1)
+    config_path = os.path.join(HERE, "project_config.json")
+    preferences = json.load(open(config_path, encoding="utf-8")).get("flowmusic", {}) if os.path.isfile(config_path) else {}
+    duck_db = float(preferences.get("ducking_db", -10))
+    if not -10 <= duck_db <= -8:
+        raise ValueError("flowmusic.ducking_db debe estar entre -10 y -8")
+    duck = 1 - (1 - 10 ** (duck_db / 20)) * np.clip(envv * 3.2, 0, 1)
     duck = lp(duck, 3, order=1)
     music = music * duck[:, None]
 
@@ -390,7 +404,7 @@ def main():
 
     out_wav = os.path.join(AUD, "master.wav")
     subprocess.run([FFMPEG, "-y", "-loglevel", "error", "-i", raw, "-af",
-                    "loudnorm=I=-14:TP=-1.0:LRA=9", "-ar", str(SR), "-t", f"{DUR:.3f}", out_wav], check=True)
+                    "loudnorm=I=-14:TP=-1.5:LRA=9", "-ar", str(SR), "-t", f"{DUR:.3f}", out_wav], check=True)
     subprocess.run([FFMPEG, "-y", "-loglevel", "error", "-i", out_wav, "-c:a", "aac", "-b:a", "256k",
                     os.path.join(AUD, "master.m4a")], check=True)
     print("master listo:", out_wav)

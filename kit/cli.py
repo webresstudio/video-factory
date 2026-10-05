@@ -77,6 +77,12 @@ def cmd_doctor(args):
             print(f"  ❌ Python Lib:     {name} FALTANTE")
             ok = False
 
+    # Check packaged scaffold as well as installed dependencies.
+    for required in ("index.html", "engine.js", "style.css", "script.json"):
+        if not os.path.isfile(os.path.join(TEMPLATE_DIR, required)):
+            print(f"  ❌ Plantilla incompleta: {required}")
+            ok = False
+
     # 5. Skills
     req_skills = [
         "internet-video-2026",
@@ -118,27 +124,36 @@ def cmd_init(args):
     print_banner()
     print(f"🎬 [wvf init] Inicializando Video Factory en: {dest}")
 
-    if os.path.isfile(os.path.join(dest, "engine.js")) and not args.force:
-        print("⚠️ Advertencia: Ya existe un proyecto inicializado en este directorio.")
-        print("   Usa --force para sobreescribir los archivos de plantilla.")
-        return 0
+    if args.from_dir and not os.path.isdir(args.from_dir):
+        raise SystemExit(f"❌ No existe el directorio de insumos: {args.from_dir}")
+    os.makedirs(dest, exist_ok=True)
 
+    existing_config = os.path.isfile(os.path.join(dest, "project_config.json"))
     # Copiar archivos de plantilla sin sobreescribir si ya existen
     for item in os.listdir(TEMPLATE_DIR):
         s = os.path.join(TEMPLATE_DIR, item)
         d = os.path.join(dest, item)
         if os.path.isdir(s):
-            if not os.path.exists(d):
-                shutil.copytree(s, d)
+            for source_root, _, files in os.walk(s):
+                relative = os.path.relpath(source_root, s)
+                target_root = os.path.join(d, relative)
+                os.makedirs(target_root, exist_ok=True)
+                for filename in files:
+                    target = os.path.join(target_root, filename)
+                    if args.force or not os.path.exists(target):
+                        shutil.copy2(os.path.join(source_root, filename), target)
         else:
             if not os.path.exists(d) or args.force:
                 shutil.copy2(s, d)
 
     # Copiar herramientas a ./tools
     tools_dest = os.path.join(dest, "tools")
-    if os.path.exists(tools_dest):
-        shutil.rmtree(tools_dest)
-    shutil.copytree(TOOLS_DIR, tools_dest)
+    os.makedirs(tools_dest, exist_ok=True)
+    for filename in os.listdir(TOOLS_DIR):
+        source = os.path.join(TOOLS_DIR, filename)
+        target = os.path.join(tools_dest, filename)
+        if os.path.isfile(source) and (args.force or not os.path.exists(target)):
+            shutil.copy2(source, target)
 
     # Crear carpetas operativas
     for d in ("prompts", "flow", "frames", "audio", "check", "render_segments", "share", "scratch", "inputs/research", "inputs/media"):
@@ -147,7 +162,7 @@ def cmd_init(args):
     # Configuración de cliente
     client_name = args.client or "Webres Studio"
     flow_url = args.flow_url or "https://flow.google.com/"
-    flowmusic_url = args.flowmusic_url or "https://www.flowmusic.app/project/95ce230f-9803-487f-b83d-cfcf3e58e405"
+    flowmusic_url = args.flowmusic_url or "https://www.flowmusic.app/"
 
     cfg = {
         "client_name": client_name,
@@ -163,8 +178,18 @@ def cmd_init(args):
         }
     }
     cfg_file = os.path.join(dest, "project_config.json")
+    if existing_config and not args.force:
+        with open(cfg_file, encoding="utf-8") as fh:
+            cfg = json.load(fh)
+        if args.client:
+            cfg["client_name"] = args.client
+        if args.flow_url:
+            cfg.setdefault("flow", {})["project_url"] = args.flow_url
+        if args.flowmusic_url:
+            cfg.setdefault("flowmusic", {})["project_url"] = args.flowmusic_url
     with open(cfg_file, "w", encoding="utf-8") as fh:
         json.dump(cfg, fh, indent=2, ensure_ascii=False)
+    client_name = cfg.get("client_name", client_name)
 
     # Ingestar insumos si se especificó --from
     if args.from_dir:
@@ -181,7 +206,7 @@ def cmd_init(args):
                         shutil.copy2(full, os.path.join(inp_res, f))
                     elif ext in (".png", ".jpg", ".jpeg", ".webp", ".svg", ".mp4", ".mov", ".wav", ".mp3"):
                         shutil.copy2(full, os.path.join(inp_med, f))
-            subprocess.run([sys.executable, os.path.join(dest, "tools", "ingest.py")], cwd=dest)
+            subprocess.run([sys.executable, os.path.join(dest, "tools", "ingest.py")], cwd=dest, check=True)
 
     print(f"\n✅ Video Factory inicializado exitosamente para: {client_name}")
     print("👉 Puedes lanzar el entorno interactivo de producción con:")
@@ -217,16 +242,14 @@ def cmd_start(args):
     preview_url = f"http://127.0.0.1:{port}/index.html"
     print(f"\n🌐 Servidor de previsualización en: {preview_url}")
 
-    # Abrir navegador si no se pide silenciar
-    if not args.no_open:
-        subprocess.run(["open", preview_url], capture_output=True)
-
     # Iniciar servidor estático
     import http.server
     import socketserver
     Handler = http.server.SimpleHTTPRequestHandler
-    with socketserver.TCPServer(("", port), Handler) as httpd:
+    with socketserver.TCPServer(("127.0.0.1", port), Handler) as httpd:
         print(f"✓ Servidor activo en puerto {port}. Presiona Ctrl+C para detener.")
+        if not args.no_open:
+            subprocess.run(["open", preview_url], capture_output=True)
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:
@@ -297,43 +320,9 @@ def cmd_new(args):
     if os.path.exists(dest):
         sys.exit(f"❌ Error: El directorio destino ya existe: {dest}")
 
-    print(f"🎬 [wvf new] Creando nuevo proyecto de video: '{name}' en {dest}...")
-    shutil.copytree(TEMPLATE_DIR, dest)
-
-    # Copiar herramientas
-    tools_dest = os.path.join(dest, "tools")
-    shutil.copytree(TOOLS_DIR, tools_dest)
-
-    # Crear carpetas operativas
-    for d in ("prompts", "flow", "frames", "audio", "check", "render_segments", "share", "scratch"):
-        os.makedirs(os.path.join(dest, d), exist_ok=True)
-
-    # Copiar inputs si se especificó --from
-    if args.from_dir:
-        src_from = os.path.abspath(args.from_dir)
-        if os.path.isdir(src_from):
-            print(f"📥 Copiando insumos desde: {src_from}...")
-            inp_res = os.path.join(dest, "inputs", "research")
-            inp_med = os.path.join(dest, "inputs", "media")
-            for root, _, files in os.walk(src_from):
-                for f in files:
-                    full = os.path.join(root, f)
-                    ext = os.path.splitext(f)[1].lower()
-                    if ext in (".md", ".txt", ".pdf", ".docx", ".json"):
-                        shutil.copy2(full, os.path.join(inp_res, f))
-                    elif ext in (".png", ".jpg", ".jpeg", ".webp", ".svg", ".mp4", ".mov", ".wav", ".mp3"):
-                        shutil.copy2(full, os.path.join(inp_med, f))
-            # Auto-ingest
-            print("📦 Ejecutando auto-ingest preliminar...")
-            subprocess.run([sys.executable, os.path.join(dest, "tools", "ingest.py")], cwd=dest)
-        else:
-            print(f"⚠️ La ruta --from especificada no es un directorio: {src_from}")
-
-    print(f"\n✅ Proyecto creado con éxito en: {dest}")
-    print("👉 Siguientes pasos recomendados:")
-    print(f"   1. cd '{os.path.relpath(dest)}'")
-    print("   2. Revisa o edita inputs/brief.md")
-    print("   3. Inicia el entorno con: wvf start")
+    args.path = dest
+    args.force = False
+    return cmd_init(args)
 
 
 def cmd_exec_tool(script_name, extra_args):
@@ -353,7 +342,7 @@ def cmd_serve(args):
     import http.server
     import socketserver
     Handler = http.server.SimpleHTTPRequestHandler
-    with socketserver.TCPServer(("", port), Handler) as httpd:
+    with socketserver.TCPServer(("127.0.0.1", port), Handler) as httpd:
         print(f"✓ Servidor activo en puerto {port}. Presiona Ctrl+C para detener.")
         try:
             httpd.serve_forever()
@@ -376,6 +365,9 @@ def main():
         description="WVF — Webres Video Factory CLI",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    with open(os.path.join(FACTORY_ROOT, "VERSION"), encoding="utf-8") as version_file:
+        version = version_file.read().strip()
+    parser.add_argument("--version", action="version", version=f"wvf {version}")
     subparsers = parser.add_subparsers(dest="command")
 
     # doctor
@@ -404,6 +396,9 @@ def main():
     p_new = subparsers.add_parser("new", help="Crea un nuevo proyecto de video")
     p_new.add_argument("name", help="Nombre o slug del proyecto")
     p_new.add_argument("--path", help="Ruta de destino alternativa")
+    p_new.add_argument("--client", help="Nombre del cliente")
+    p_new.add_argument("--flow-url", help="URL del proyecto Flow")
+    p_new.add_argument("--flowmusic-url", help="URL del proyecto FlowMusic")
     p_new.add_argument("--from", dest="from_dir", help="Directorio con archivos de investigación o medios para auto-importar")
 
     # ingest
@@ -473,7 +468,7 @@ def main():
     elif args.command == "media":
         sys.exit(cmd_media(args))
     elif args.command == "new":
-        cmd_new(args)
+        sys.exit(cmd_new(args))
     elif args.command == "ingest":
         sys.exit(cmd_exec_tool("ingest.py", unknown))
     elif args.command == "timeline":
@@ -485,7 +480,10 @@ def main():
     elif args.command == "frames":
         sys.exit(cmd_exec_tool("frames.py", args.times + unknown))
     elif args.command == "render":
-        sys.exit(cmd_exec_tool("render.py", unknown))
+        extra = ["--workers", str(args.workers), "--fps", str(args.fps)]
+        if args.test:
+            extra.append("--test")
+        sys.exit(cmd_exec_tool("render.py", extra + unknown))
     elif args.command == "qa":
         extra = [args.file] if args.file else []
         sys.exit(cmd_exec_tool("qa.py", extra + unknown))

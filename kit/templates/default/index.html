@@ -148,7 +148,11 @@
 </div>
 <video id="camv" muted playsinline preload="auto"></video>
 <audio id="audio" src="audio/master.m4a" preload="auto"></audio>
-<script src="timing.js"></script>
+<script>
+window.WVF_TIMING_READY = fetch("timing.js").then(r => r.ok ? r.text() : "").then(source => {
+  if (source) { const script = document.createElement("script"); script.textContent = source; document.head.appendChild(script); }
+});
+</script>
 <script src="engine.js"></script>
 </body>
 </html>

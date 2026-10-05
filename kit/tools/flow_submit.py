@@ -65,4 +65,7 @@ if a.dry:
 if js(CHIP) != "true":
     sys.exit("ABORT: likeness chip lost before submit")
 # 4) go
-print(js("(function(){const b=Array.from(document.querySelectorAll('button')).find(b=>(b.getAttribute('aria-label')||'')==='Iniciar generación'); if(!b) return 'no go'; if(b.disabled) return 'disabled'; b.click(); return 'submitted'})()"))
+result = js("(function(){const b=Array.from(document.querySelectorAll('button')).find(b=>(b.getAttribute('aria-label')||'')==='Iniciar generación'); if(!b) return 'no go'; if(b.disabled) return 'disabled'; b.click(); return 'submitted'})()")
+print(result)
+if result != "submitted":
+    sys.exit("ABORT: Flow no confirmó la generación")

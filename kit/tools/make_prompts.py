@@ -14,6 +14,6 @@ BASE = (
 )
 
 for L in LINES:
-    p = BASE.format(act=L.get("acting", "Natural confident expression."), text=L["text"])
+    p = BASE.format(act=L.get("acting", "Natural confident expression."), text=L.get("spoken_text", L["text"]))
     open(os.path.join(HERE, "..", "prompts", f"{L['id']}.txt"), "w", encoding="utf-8").write(p + "\n")
     print(L["id"], L["dur"], len(L["text"].split()), "words")

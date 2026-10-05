@@ -5,7 +5,7 @@ usage: flowjs.py file.js            -> prints the JS return value
        flowjs.py -e "document.title"
        flowjs.py --nav URL           -> navigates the Flow tab
 """
-import subprocess, sys, tempfile, os
+import subprocess, sys, tempfile, os, json
 
 MATCH = "flow.google.com"
 
@@ -14,12 +14,14 @@ def run_js(code: str) -> str:
     with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False) as f:
         f.write(code)
         path = f.name
+    configured = get_default_project_url()
+    match = configured.split("/edit/")[0].rstrip("/") if configured else MATCH
     script = f'''
 set jsCode to (read POSIX file "{path}" as «class utf8»)
 tell application "Google Chrome"
     repeat with w in windows
         repeat with t in tabs of w
-            if URL of t contains "{MATCH}" then
+            if URL of t contains {json.dumps(match, ensure_ascii=False)} then
                 return execute t javascript jsCode
             end if
         end repeat
@@ -29,9 +31,12 @@ return "NO_TAB"
 '''
     res = subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
     os.unlink(path)
-    if res.stderr.strip():
-        sys.stderr.write(res.stderr)
-    return res.stdout.strip()
+    if res.returncode:
+        raise RuntimeError(res.stderr.strip() or "AppleScript falló")
+    result = res.stdout.strip()
+    if result == "NO_TAB":
+        raise RuntimeError("No hay pestaña de Chrome abierta en el proyecto Flow configurado.")
+    return result
 
 
 def get_default_project_url():

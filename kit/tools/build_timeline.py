@@ -6,11 +6,12 @@ with authored gaps, and write:
   audio/voice.wav   48 kHz mono narration
   timing.js         window.TIMING = {duration, lines:[{id,t0,t1,clipIn,cam}], words:[{l,w,t,e}]}
 """
-import json, os
+import json, os, glob, subprocess
 import numpy as np
 import soundfile as sf
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+from env_config import get_project_root
+ROOT = get_project_root()
 LINES = json.load(open(os.path.join(ROOT, "script.json"), encoding="utf-8"))
 SR = 48000
 LEAD = 0.30          # silence before the first word (cold open breathes for 0.3 s)
@@ -98,19 +99,38 @@ for L in LINES:
     for w in W:
         words.append({"l": lid, "w": w["w"], "t": round(t0 + tmap(w["t"] - s), 3), "e": round(t0 + tmap(w["e"] - s), 3)})
     cursor = t0 + len(seg) / SR
-    g = GAP[lid]
+    g = GAP.get(lid, 0.4) if L is not LINES[-1] else 0.0
     out.append(np.zeros(int(g * SR), dtype=np.float32))
     cursor += g
 out.append(np.zeros(int(TAIL * SR), dtype=np.float32))
 cursor += TAIL
 voice = np.concatenate(out)
 os.makedirs(os.path.join(ROOT, "audio"), exist_ok=True)
-sf.write(os.path.join(ROOT, "audio", "voice.wav"), voice, SR, subtype="PCM_24")
 dur = round(len(voice) / SR, 3)
 T = {"duration": dur, "lines": meta, "words": words}
-frames = {d: len(os.listdir(os.path.join(ROOT, "frames", d))) for d in ("L02", "L06", "L09") if os.path.isdir(os.path.join(ROOT, "frames", d))}
+frames, cam_sources = {}, {}
+from env_config import get_ffmpeg
+for line in LINES:
+    if not line.get("cam"):
+        continue
+    lid = line["id"]
+    source = os.path.join(ROOT, "flow", f"{lid}_1080.mp4")
+    if not os.path.isfile(source):
+        source = os.path.join(ROOT, "flow", f"{lid}.mp4")
+    if not os.path.isfile(source):
+        raise RuntimeError(f"Falta el video de cámara para {lid}: {source}")
+    dest = os.path.join(ROOT, "frames", lid)
+    os.makedirs(dest, exist_ok=True)
+    for previous in glob.glob(os.path.join(dest, "[0-9][0-9][0-9][0-9].jpg")):
+        os.unlink(previous)
+    subprocess.run([get_ffmpeg(), "-y", "-loglevel", "error", "-i", source,
+                    "-vf", "fps=24", "-q:v", "2", os.path.join(dest, "%04d.jpg")], check=True)
+    frames[lid] = len(glob.glob(os.path.join(dest, "[0-9][0-9][0-9][0-9].jpg")))
+    cam_sources[lid] = os.path.relpath(source, ROOT)
+
+sf.write(os.path.join(ROOT, "audio", "voice.wav"), voice, SR, subtype="PCM_24")
 open(os.path.join(ROOT, "timing.js"), "w", encoding="utf-8").write(
-    "window.TIMING = " + json.dumps(T, ensure_ascii=False, indent=0) + ";\nwindow.CAM_FRAMES = " + json.dumps(frames) + ";\n")
+    "window.TIMING = " + json.dumps(T, ensure_ascii=False, indent=0) + ";\nwindow.CAM_FRAMES = " + json.dumps(frames) + ";\nwindow.CAM_SOURCES = " + json.dumps(cam_sources) + ";\n")
 for m in meta:
     print(m)
 print("duration", dur)

@@ -3,15 +3,21 @@
 Uso: python frames.py 1.0 3.5 7.9 ...   (o sin args para el set por defecto)
 """
 import os
+import math
 import sys
 from PIL import Image
 from playwright.sync_api import sync_playwright
 
-HERE = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+from env_config import get_project_root
+HERE = get_project_root()
 OUT = os.path.join(HERE, "check")
 os.makedirs(OUT, exist_ok=True)
-URL = "http://127.0.0.1:4391/index.html?render=1"
+from env_config import get_preview_url
+URL = get_preview_url()
 DEFAULT = [0.4, 3.5, 6.5, 7.75, 11.5, 16.5, 17.0, 20.5, 24.4, 27.5, 31.1, 35.0, 39.1, 39.5, 43.0, 46.5, 46.8, 51.0, 54.9, 58.5, 61.5, 66.0, 71.6, 72.2, 75.0, 78.5]
+times = [float(t) for t in sys.argv[1:]] if len(sys.argv) > 1 else DEFAULT
+if any(not math.isfinite(t) or t < 0 for t in times):
+    raise SystemExit("Los tiempos deben ser segundos finitos y no negativos.")
 from env_config import get_chrome
 
 with sync_playwright() as p:

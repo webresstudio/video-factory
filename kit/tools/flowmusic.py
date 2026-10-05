@@ -22,7 +22,7 @@ ROOT = os.getcwd()
 FF = get_ffmpeg()
 
 CONFIG_FILE = os.path.join(ROOT, "project_config.json")
-DEFAULT_URL = "https://www.flowmusic.app/project/95ce230f-9803-487f-b83d-cfcf3e58e405"
+DEFAULT_URL = "https://www.flowmusic.app/"
 
 def load_config():
     if os.path.isfile(CONFIG_FILE):

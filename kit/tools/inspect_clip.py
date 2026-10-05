@@ -5,7 +5,8 @@ usage: inspect_clip.py L02
 import json, os, subprocess, sys, glob
 from env_config import get_ffmpeg
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+from env_config import get_project_root
+ROOT = get_project_root()
 FF = get_ffmpeg()
 lid = sys.argv[1]
 src = sorted(glob.glob(os.path.join(ROOT, "flow", lid, "*.mp4")))[-1]

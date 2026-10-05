@@ -5,7 +5,8 @@ from playwright.sync_api import sync_playwright
 
 from env_config import get_chrome
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+from env_config import get_project_root
+ROOT = get_project_root()
 with sync_playwright() as p:
     launch_args = {"headless": True}
     ch = get_chrome()
@@ -14,7 +15,8 @@ with sync_playwright() as p:
     b = p.chromium.launch(**launch_args)
     pg = b.new_page(viewport={"width": 1080, "height": 1920})
     pg.on("pageerror", lambda e: print("pageerror:", e))
-    pg.goto("http://127.0.0.1:4391/index.html?render=1")
+    from env_config import get_preview_url
+    pg.goto(get_preview_url())
     pg.wait_for_function("window.READY === true || window.BOOT_ERROR", timeout=20000)
     d = pg.evaluate("({duration: window.DURATION, cues: window.CUES, err: window.BOOT_ERROR || null})")
     b.close()

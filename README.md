@@ -3,8 +3,8 @@
 <div align="center">
 
 ![Deterministic Render](https://img.shields.io/badge/Render-Deterministic_60fps-00CEA7?style=for-the-badge)
-![Word Clock](https://img.shields.io/badge/Word_Clock-Whisper_1ms_Precision-00F2FE?style=for-the-badge)
-![Audio Standard](https://img.shields.io/badge/Audio-EBU_R128_(-14_LUFS)-8B5CF6?style=for-the-badge)
+![Word Clock](https://img.shields.io/badge/Word_Clock-Whisper_Word_Timestamps-00F2FE?style=for-the-badge)
+![Audio Standard](https://img.shields.io/badge/Audio-Streaming_(-14_LUFS)-8B5CF6?style=for-the-badge)
 ![Avatar Sync](https://img.shields.io/badge/Voice_%26_Face-Google_Flow_@me-FFB800?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-Proprietary_Webres_Studio-black?style=for-the-badge)
 
@@ -26,7 +26,7 @@ WVF reemplaza los editores de video tradicionales (Premiere, After Effects, CapC
 En lugar de arrastrar capas o lidiar con caídas de fotogramas, cada segundo de video se evalúa a través de una función pura:
 $$\text{Frame}(t) = \text{renderAt}(t)$$
 
-Esto permite generar videos verticales de **1080×1920 a 60 fps quirúrgicos**, donde cada revelación de texto, morphing de iconos, golpe sonoro y cambio de escena cae en el milisegundo exacto en que el presentador pronuncia esa palabra.
+Esto permite generar videos verticales de **1080×1920 a 60 fps quirúrgicos**, donde los eventos visuales y sonoros se anclan a las marcas temporales de palabras de Whisper. Los timestamps se guardan con tres decimales; esto no garantiza una precisión fonética de 1 ms.
 
 ---
 
@@ -41,7 +41,7 @@ flowchart TD
     end
 
     subgraph INGEST ["2. Ingesta & Fact-Checking"]
-        B1["wvf ingest"] --> B2["facts.md (Hechos Verificados)"]
+        B1["wvf ingest"] --> B2["facts_candidates.md → revisión humana → facts.md"]
         B1 --> B3["media_catalog.json (Resolución & Encuadre)"]
     end
 
@@ -135,7 +135,7 @@ O simplemente **arrastra los archivos al chat**.
 
 ### 2. Dos Puntos Únicos de Aprobación
 1. **Aprobación de Guion:** El agente te muestra la tabla de 10 escenas con el texto y la ubicación de tus imágenes. Respondes `"aprobado"` o pides cambios.
-2. **Revisión del Video:** El video llega a tu WhatsApp personal. Si notas algún detalle (por ejemplo, una palabra mal pronunciada), lo dices en español cotidiano y el agente ejecuta un parche quirúrgico (`wvf fix-word`) sin rehacer todo el video.
+2. **Revisión del Video:** El video llega a tu WhatsApp personal. Si notas algún detalle (por ejemplo, una palabra mal pronunciada), lo dices en español cotidiano. Para voz en off, `wvf fix-word` reemplaza la palabra conservando su duración, guarda un respaldo y reconstruye el timeline. En escenas con el presentador visible se regenera la toma completa para conservar la sincronización labial.
 
 ---
 
@@ -182,7 +182,7 @@ wvf qa
 wvf share --send-wa --contact "William Romero"
 
 # 12. Corrección quirúrgica de una palabra (e.g. 'API' por 'ápi')
-wvf fix-word L09 "API" "Pero si usas la ápi..."
+wvf fix-word L01 "API" "la ápi"
 ```
 
 ---
@@ -222,14 +222,48 @@ Cada cliente o proyecto nuevo puede tener sus propias URLs de trabajo en Google 
    const t_cta = W("L10", "automatizamos"); // segundo exacto de la palabra
    ```
 3. **Cero Slop en Cifras y Datos:**  
-   Solo se enuncian hechos explícitamente presentes en `facts.md`. Está prohibido alucinar porcentajes, descuentos o precios ficticios.
+   `wvf ingest` extrae candidatos a `facts_candidates.md`; no realiza verificación externa. Tras confirmar fuentes y fechas, el agente o editor incorpora los hechos a `facts.md`. La ingesta conserva ese archivo, incluso al agregar medios.
 4. **Norma Broadcast de Audio:**  
-   Cumplimiento estricto de **EBU R128**:
+   Objetivo de entrega para streaming, medido mediante **ITU-R BS.1770 / loudnorm**:
    - Integrado: **-14.0 LUFS (±1.0)**
    - Pico Máximo: **≤ -1.0 dBTP**
    - Ducking automático de música: **-8 dB a -10 dB** durante la voz.
 
 ---
+
+
+## Actualización y validación (v0.2.0)
+
+La plantilla incluida es el ejemplo visual de WhatsApp, con un motor completo. Al crear un proyecto se abre una vista previa con tiempos estimados y un aviso de ejemplo. Esos tiempos no se pueden exportar: primero hay que adaptar el guion, verificar sus hechos, generar las tomas y ejecutar `wvf timeline`. Para otros temas, adaptar también `index.html` y los anclajes de `engine.js`.
+
+`wvf init` agrega archivos faltantes y conserva configuración, herramientas y contenido existente. `--force` reemplaza archivos distribuidos por la plantilla y el kit; los archivos personalizados ajenos al kit se conservan. El instalador conserva skills personalizadas existentes.
+
+`wvf qa` devuelve un código distinto de cero si falla resolución, frame rate, codec, canales, volumen o la comparación de la transcripción con el guion. Genera `check/qa_report.json`. `--technical-only` audita únicamente parámetros técnicos; no aprueba claridad vocal. La comparación de palabras no sustituye escuchar y revisar el video.
+
+`wvf share` calcula el bitrate con la duración, hace dos pasadas y comprueba que la salida mida menos de 15 MiB antes de enviar. Con `--send-wa`, WhatsApp Web debe estar abierto en Chrome y el chat seleccionado debe coincidir exactamente con `--contact`. La automatización requiere los permisos y selectores disponibles en esa sesión; los errores se devuelven al CLI.
+
+Para corregir una palabra de voz en off con una toma ya descargada:
+
+```bash
+wvf fix-word L01 "API" "la ápi" --patch-file /ruta/parche.mp4 --patch-word "ápi"
+wvf audio
+wvf render
+wvf qa
+```
+
+Sin `--patch-file`, se solicita y descarga una toma de Flow. Se usa el proyecto configurado en `project_config.json`; debe estar abierto en Chrome. El parche conserva el intervalo original y la duración total. Si no encuentra la palabra, si la toma requiere un cambio excesivo de velocidad o si la línea muestra al presentador, se detiene sin reemplazar el audio.
+
+Pruebas locales, sin generar clips externos ni enviar mensajes:
+
+```bash
+.venv/bin/python -m unittest discover -s tests -v
+.venv/bin/python tests/smoke_pipeline.py
+.venv/bin/python tests/smoke_repairs.py
+```
+
+La integración usa voz sintética de prueba, Chromium/Chrome, FFmpeg y un servidor temporal. Comprueba la vista previa, el timeline, los cues, la mezcla, capturas repetibles, un render real de 30/60 fps, QA y compresión. Los conectores externos se prueban con simulaciones, no con operaciones en cuentas reales.
+
+`WVF_PREVIEW_URL` permite usar un servidor en un puerto diferente a 4391. El comando global `wvf` y las skills enlazadas apuntan al checkout instalado y quedan actualizados al recibir esta versión.
 
 ## 📦 Skills de Producción Incluidas
 

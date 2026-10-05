@@ -66,12 +66,17 @@ mkdir -p "$USER_AGENTS_DIR"
 for skill_path in "$DIR/skills/"*; do
   if [ -d "$skill_path" ]; then
     s_name="$(basename "$skill_path")"
-    # Link a global Gemini / Antigravity
-    rm -rf "$GLOBAL_SKILLS_DIR/$s_name"
-    ln -s "$skill_path" "$GLOBAL_SKILLS_DIR/$s_name" 2>/dev/null || cp -R "$skill_path" "$GLOBAL_SKILLS_DIR/$s_name"
-    # Link a user universal agents
-    rm -rf "$USER_AGENTS_DIR/$s_name"
-    ln -s "$skill_path" "$USER_AGENTS_DIR/$s_name" 2>/dev/null || cp -R "$skill_path" "$USER_AGENTS_DIR/$s_name"
+    for skill_dir in "$GLOBAL_SKILLS_DIR" "$USER_AGENTS_DIR"; do
+      destination="$skill_dir/$s_name"
+      if [ -L "$destination" ] && [ "$(readlink "$destination")" = "$skill_path" ]; then
+        continue
+      fi
+      if [ -e "$destination" ] || [ -L "$destination" ]; then
+        echo "↪ Conservando skill existente: $destination"
+        continue
+      fi
+      ln -s "$skill_path" "$destination"
+    done
   fi
 done
 echo "✓ 7 Skills de diseño y retención registradas globalmente."

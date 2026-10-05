@@ -7,7 +7,8 @@ import json, os, sys, time, zipfile, glob, shutil
 sys.path.insert(0, os.path.dirname(__file__))
 from flowjs import run_js
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+from env_config import get_project_root
+ROOT = get_project_root()
 DL = os.path.expanduser("~/Downloads")
 LINES = {L["id"]: L for L in json.load(open(os.path.join(ROOT, "script.json"), encoding="utf-8"))}
 
@@ -28,21 +29,25 @@ def status(needle):
 
 
 def download(idx, dest):
-    for f in glob.glob(os.path.join(DL, "*.zip")) + glob.glob(os.path.join(DL, "*.mp4")):
-        if time.time() - os.path.getmtime(f) < 3600 and ("descarga" in os.path.basename(f).lower() or "download" in os.path.basename(f).lower()):
-            os.remove(f)
     before = set(os.listdir(DL))
     r = run_js("""(function(){const tb=document.querySelectorAll('.batch-toolbar')[%d]; const b=tb.querySelector('button[aria-label="Descargar lote"]'); b.scrollIntoView({block:'center'}); b.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window})); return 'clicked'})()""" % idx)
     print(r)
     for _ in range(80):
         time.sleep(0.5)
-        new = [f for f in set(os.listdir(DL)) - before if not f.endswith(".crdownload")]
+        new = [f for f in set(os.listdir(DL)) - before if f.lower().endswith((".mp4", ".zip"))]
+        if len(new) > 1:
+            raise RuntimeError("Múltiples descargas detectadas; no se seleccionará un archivo ambiguo.")
         if new:
             time.sleep(1.0)
             p = os.path.join(DL, new[0])
             os.makedirs(dest, exist_ok=True)
             if p.endswith(".zip"):
                 with zipfile.ZipFile(p) as z:
+                    target = os.path.realpath(dest)
+                    for member in z.infolist():
+                        path = os.path.realpath(os.path.join(dest, member.filename))
+                        if os.path.commonpath([target, path]) != target:
+                            raise RuntimeError("El ZIP contiene una ruta fuera de la carpeta destino.")
                     z.extractall(dest)
                     print("extracted", z.namelist())
                 os.remove(p)
@@ -65,4 +70,5 @@ if __name__ == "__main__":
     if "--status" in sys.argv:
         sys.exit(0)
     if ready:
-        download(ready[0]["i"], os.path.join(ROOT, "flow", lid))
+        if not download(ready[0]["i"], os.path.join(ROOT, "flow", lid)):
+            sys.exit(1)
