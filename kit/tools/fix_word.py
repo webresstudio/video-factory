@@ -13,7 +13,7 @@ import unicodedata
 import re
 import numpy as np
 import soundfile as sf
-from env_config import get_ffmpeg, get_project_root
+from env_config import get_ffmpeg, get_project_root, tool_command
 
 
 def norm(text):
@@ -93,7 +93,7 @@ def main(argv=None):
             raise ValueError('Esta línea muestra al presentador. Regenerar su toma completa para conservar la sincronización labial; fix-word es para voz en off.')
         patch_file=Path(args.patch_file) if args.patch_file else None
         if patch_file is None:
-            subprocess.run([sys.executable,str(Path(__file__).with_name('flow_submit.py')),'--dur','8','--res','720p','--prompt-file',str(prompt)],check=True)
+            subprocess.run(tool_command('flow_submit.py',['--dur','8','--res','720p','--prompt-file',prompt],root),check=True)
             from flow_download import status, download
             deadline=time.monotonic()+args.timeout
             patch_dir=root/'flow'/f'{args.line_id}_PATCH'
@@ -119,7 +119,7 @@ def main(argv=None):
         sf.write(audio_path,output,48000,subtype='PCM_24')
         words_path.write_text(json.dumps(updated,ensure_ascii=False,indent=2),encoding='utf-8')
         try:
-            subprocess.run([sys.executable,str(Path(__file__).with_name('build_timeline.py'))],cwd=root,check=True)
+            subprocess.run(tool_command('build_timeline.py',root=root),cwd=root,check=True)
         except Exception:
             shutil.copy2(backup/audio_path.name,audio_path); shutil.copy2(backup/words_path.name,words_path)
             raise

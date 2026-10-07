@@ -4,7 +4,6 @@
 usage: flow_download.py L02   (matches script.json text of that line)
 """
 import json, os, sys, time, zipfile, glob, shutil
-sys.path.insert(0, os.path.dirname(__file__))
 from flowjs import run_js
 
 from env_config import get_project_root

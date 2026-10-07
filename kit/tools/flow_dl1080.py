@@ -3,7 +3,6 @@
 usage: flow_dl1080.py L02 [--take N]   (N = which match, 0 = newest)
 """
 import json, os, sys, time, shutil
-sys.path.insert(0, os.path.dirname(__file__))
 from flowjs import run_js
 from flow_download import status, LINES, ROOT, DL
 

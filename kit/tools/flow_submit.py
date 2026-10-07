@@ -4,7 +4,6 @@
 usage: flow_submit.py --dur 10 --res 720p --prompt-file p.txt
 """
 import argparse, json, time, sys, os
-sys.path.insert(0, os.path.dirname(__file__))
 from flowjs import run_js
 
 ap = argparse.ArgumentParser()

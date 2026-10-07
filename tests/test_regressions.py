@@ -88,7 +88,7 @@ class RegressionTests(unittest.TestCase):
     def test_init_preserves_configuration_and_custom_tools(self):
         p=self.new_project();(p/'engine.js').unlink()
         cfg={'client_name':'Acme','flow':{'project_url':'https://example.com/client'},'custom':'KEEP'}
-        (p/'project_config.json').write_text(json.dumps(cfg));(p/'tools/custom.py').write_text('KEEP')
+        (p/'tools').mkdir();(p/'project_config.json').write_text(json.dumps(cfg));(p/'tools/custom.py').write_text('KEEP')
         (p/'tools/render.py').write_text('# customized renderer')
         result=self.run_cli('init',cwd=p)
         self.assertEqual(result.returncode,0,result.stderr)
@@ -113,10 +113,46 @@ class RegressionTests(unittest.TestCase):
         self.assertIn('Unverified source claim',(p/'facts_candidates.md').read_text())
         self.assertIn('pendientes de verificación',(p/'facts_candidates.md').read_text())
 
-    def test_installed_tool_fallback_uses_project_directory(self):
-        p=self.new_project();shutil.rmtree(p/'tools')
+    def test_new_project_keeps_no_tool_copies_and_uses_package(self):
+        p=self.new_project()
+        self.assertFalse(any((p/'tools').glob('*')) if (p/'tools').exists() else False)
         self.assertEqual(self.run_cli('ingest',cwd=p).returncode,0)
         self.assertTrue((p/'facts_candidates.md').is_file())
+
+    def test_init_force_never_touches_project_tools(self):
+        p=self.new_project();(p/'tools').mkdir()
+        (p/'tools/render.py').write_text('# customized renderer');(p/'tools/qa.py').write_text('# legacy copy')
+        self.assertEqual(self.run_cli('init','--force',cwd=p).returncode,0)
+        self.assertEqual((p/'tools/render.py').read_text(),'# customized renderer')
+        self.assertEqual((p/'tools/qa.py').read_text(),'# legacy copy')
+        self.assertEqual(sorted(f.name for f in (p/'tools').iterdir()),['qa.py','render.py'])
+
+    def test_tool_resolution_prefers_project_copy(self):
+        p=self.tmp/'p';(p/'tools').mkdir(parents=True);(p/'tools/build_timeline.py').write_text('# own')
+        self.assertEqual(env_config.tool_command('build_timeline.py',root=str(p))[1],str(p/'tools/build_timeline.py'))
+        self.assertEqual(env_config.tool_command('render.py',root=str(p))[1],str(ROOT/'kit/tools/render.py'))
+        self.assertEqual(env_config.tool_command('download_all.sh',root=str(p))[0],'bash')
+
+    def test_project_tool_imports_package_modules_through_wvf(self):
+        p=self.new_project();(p/'tools').mkdir()
+        (p/'tools/own_tool.py').write_text('import sys, env_config\nopen("marker","w").write(env_config.kit_tools_dir()+"|"+" ".join(sys.argv[1:]))\n')
+        result=self.run_cli('tool','own_tool','--flag','L01',cwd=p)
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertEqual((p/'marker').read_text(),str(ROOT/'kit/tools')+'|--flag L01')
+
+    def test_project_module_overrides_package_module_for_package_tools(self):
+        kit=self.tmp/'kit';kit.mkdir();p=self.tmp/'p';(p/'tools').mkdir(parents=True)
+        (kit/'runner.py').write_text('import shared\nprint(shared.WHO)\n');(kit/'shared.py').write_text('WHO="kit"\n')
+        (p/'tools/shared.py').write_text('WHO="project"\n')
+        with patch.dict(os.environ,{'WVF_KIT_TOOLS':str(kit)}):
+            out=subprocess.run(env_config.tool_command('runner.py',root=str(p)),env=env_config.tool_env(str(p)),capture_output=True,text=True)
+        self.assertEqual(out.stdout.strip(),'project',out.stderr)
+
+    def test_tool_command_finds_shell_tools_without_extension(self):
+        cli=load_cli()
+        with patch.object(sys,'argv',['wvf','tool','download_all']),patch.object(cli,'cmd_exec_tool',return_value=0) as call:
+            with self.assertRaises(SystemExit): cli.main()
+        call.assert_called_once_with('download_all.sh',[])
 
     def valid_metadata(self):
         return {'streams':[{'codec_type':'video','width':1080,'height':1920,'r_frame_rate':'60/1','avg_frame_rate':'60/1','codec_name':'h264','pix_fmt':'yuv420p'}, {'codec_type':'audio','sample_rate':'48000','channels':2}], 'format':{'duration':'3'}}

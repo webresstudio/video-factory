@@ -58,13 +58,13 @@ WVF is the official video production standard of **Webres Studio**. It replaces 
   Must verify that the user's likeness chip is active in the Flow prompt box before submitting.
 * Run:
   ```bash
-  python tools/make_prompts.py
-  python tools/flow_submit.py --dur 8 --res 720p --prompt-file prompts/L01.txt
+  wvf tool make_prompts
+  wvf tool flow_submit --dur 8 --res 720p --prompt-file prompts/L01.txt
   ```
-* For on-camera scenes (typically 3 scenes: hook/premise, midpoint, warning), upscale to 1080p via `tools/flow_dl1080.py`.
+* For on-camera scenes (typically 3 scenes: hook/premise, midpoint, warning), upscale to 1080p via `wvf tool flow_dl1080 L01`.
 * Extract audio and transcribe word timestamps:
   ```bash
-  python tools/inspect_clip.py L01
+  wvf tool inspect_clip L01
   ```
 
 ### Phase 4: Word Clock & Timeline
@@ -171,13 +171,16 @@ wvf render [--workers 4] [--fps 60]           # Full deterministic export
 wvf qa                                        # Technical compliance & Whisper audit
 wvf share [--send-wa]                         # Compress & send to WhatsApp
 wvf fix-word <Lxx> <word> <phonetic_phrase>   # Surgical vocal patch
+wvf tool <name> [args...]                     # Run any pipeline tool (e.g. make_prompts, flow_submit)
 ```
 
 ## Initialization, updates and repair
 
 The default template is a complete WhatsApp example, not a generic scene generator. Adapt factual content, DOM and word anchors for each new topic. Fresh previews estimate word times and display an example notice. Render mode rejects missing `timing.js`; demo timing must never be used to publish a video.
 
-`wvf init` preserves existing configuration and custom tools; `--force` explicitly refreshes distributed template/tool files. The installer preserves existing custom skills. Use `wvf --version` to identify the installed release.
+A project folder holds only what is edited for that video (`engine.js`, `index.html`, `style.css`, scripts, timing, media). Pipeline tools live only in the package, so every package fix reaches every project. To customize a tool for one video, copy just that file into the project's `tools/`: `wvf` runs it, and imports resolve from `tools/` first and then from the package. Always run tools through `wvf` (`wvf tool <name>`), never `python tools/...`, so that layering applies. `wvf start` lists a project's own tools.
+
+`wvf init` preserves existing configuration; `--force` refreshes template files. Neither ever touches `tools/`. The installer preserves existing custom skills. Use `wvf --version` to identify the installed release.
 
 `wvf fix-word` is for voiceover-only lines. It validates the existing word before generation, supports `--patch-file`, `--patch-word`, `--patch-words` and `--occurrence`, backs up the original audio and timestamps, replaces the word within its original interval, and rebuilds the timeline. For on-camera lines regenerate the whole take to preserve lip sync. After patching, rebuild audio, render and QA; the previous master remains unchanged until these commands run.
 

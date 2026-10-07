@@ -67,7 +67,7 @@ def cmd_status():
     raw = res.stdout.strip()
     if raw == "NO_TAB" or not raw.startswith("{"):
         print("⚠️ No se detectó ninguna pestaña activa con FlowMusic en Chrome.")
-        print(f"👉 Puedes abrirla con: python tools/flowmusic.py --nav")
+        print(f"👉 Puedes abrirla con: wvf flowmusic --nav")
         return
 
     try:

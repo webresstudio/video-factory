@@ -76,6 +76,36 @@ def get_project_root(for_file=None):
     return (for_file and find_project_root(for_file)) or os.path.abspath(os.getcwd())
 
 
+def kit_tools_dir():
+    """The package's tools folder (set by the launcher, so a project override of this module still finds it)."""
+    return os.environ.get("WVF_KIT_TOOLS") or os.path.dirname(os.path.abspath(__file__))
+
+
+def tool_path(name, root=None):
+    """Projects keep only what they customize: tools/<name> overrides the package's tool."""
+    own = os.path.join(root or get_project_root(), "tools", name)
+    return own if os.path.isfile(own) else os.path.join(kit_tools_dir(), name)
+
+
+def tool_env(root=None, base=None):
+    """Imports resolve like tools: the project's tools/ first, then the package.
+
+    PYTHONSAFEPATH (Python 3.11+) stops each script's own folder from jumping ahead of tools/.
+    """
+    env = dict(os.environ if base is None else base)
+    kit = kit_tools_dir()
+    paths = [os.path.join(root or get_project_root(), "tools"), kit]
+    if env.get("PYTHONPATH"):
+        paths.append(env["PYTHONPATH"])
+    env.update(PYTHONPATH=os.pathsep.join(paths), PYTHONSAFEPATH="1", WVF_KIT_TOOLS=kit, WVF_PYTHON=sys.executable)
+    return env
+
+
+def tool_command(name, args=(), root=None):
+    path = tool_path(name, root)
+    return (["bash"] if path.endswith(".sh") else [sys.executable]) + [path, *map(str, args)]
+
+
 def project_slug(root):
     """Stable file-name stem from the project folder name (no accents, lowercase)."""
     name = unicodedata.normalize("NFKD", os.path.basename(os.path.abspath(root)))

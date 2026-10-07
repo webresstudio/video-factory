@@ -146,14 +146,8 @@ def cmd_init(args):
             if not os.path.exists(d) or args.force:
                 shutil.copy2(s, d)
 
-    # Copiar herramientas a ./tools
-    tools_dest = os.path.join(dest, "tools")
-    os.makedirs(tools_dest, exist_ok=True)
-    for filename in os.listdir(TOOLS_DIR):
-        source = os.path.join(TOOLS_DIR, filename)
-        target = os.path.join(tools_dest, filename)
-        if os.path.isfile(source) and (args.force or not os.path.exists(target)):
-            shutil.copy2(source, target)
+    # Las herramientas no se copian: viven en el paquete. tools/ del proyecto solo guarda las que se personalicen,
+    # y init nunca lo modifica (ni con --force).
 
     # Crear carpetas operativas
     for d in ("prompts", "flow", "frames", "audio", "check", "render_segments", "share", "scratch", "inputs/research", "inputs/media"):
@@ -206,7 +200,8 @@ def cmd_init(args):
                         shutil.copy2(full, os.path.join(inp_res, f))
                     elif ext in (".png", ".jpg", ".jpeg", ".webp", ".svg", ".mp4", ".mov", ".wav", ".mp3"):
                         shutil.copy2(full, os.path.join(inp_med, f))
-            subprocess.run([sys.executable, os.path.join(dest, "tools", "ingest.py")], cwd=dest, check=True)
+            if cmd_exec_tool("ingest.py", [], cwd=dest):
+                raise SystemExit("❌ La ingesta de insumos falló.")
 
     print(f"\n✅ Video Factory inicializado exitosamente para: {client_name}")
     print("👉 Puedes lanzar el entorno interactivo de producción con:")
@@ -237,6 +232,9 @@ def cmd_start(args):
     print(f"  {'✓' if has_timing else '○'} 3. Timeline:   {'timing.js sincronizado' if has_timing else 'Pendiente (wvf timeline)'}")
     print(f"  {'✓' if has_master_audio else '○'} 4. Audio:      {'master.wav (-14 LUFS) listo' if has_master_audio else 'Pendiente (wvf audio)'}")
     print(f"  {'✓' if cands_video else '○'} 5. Video:      {os.path.basename(cands_video[0]) if cands_video else 'Pendiente de render (wvf render)'}")
+    tools_dir = os.path.join(cwd, "tools")
+    own_tools = sorted(f for f in os.listdir(tools_dir) if os.path.isfile(os.path.join(tools_dir, f))) if os.path.isdir(tools_dir) else []
+    print(f"  🔧 Herramientas propias: {', '.join(own_tools) if own_tools else 'ninguna (usa todas las del paquete)'}")
 
     port = args.port
     preview_url = f"http://127.0.0.1:{port}/index.html"
@@ -282,18 +280,12 @@ def cmd_media(args):
 
         # Ejecutar auto-ingest
         print("\n⚙️ Catalogando activos multimedia...")
-        tool = os.path.join(cwd, "tools", "ingest.py")
-        if not os.path.isfile(tool):
-            tool = os.path.join(TOOLS_DIR, "ingest.py")
-        subprocess.run([sys.executable, tool], cwd=cwd)
+        cmd_exec_tool("ingest.py", [], cwd=cwd)
 
     # List / Inspect
     cat_file = os.path.join(cwd, "media_catalog.json")
     if not os.path.isfile(cat_file):
-        tool = os.path.join(cwd, "tools", "ingest.py")
-        if not os.path.isfile(tool):
-            tool = os.path.join(TOOLS_DIR, "ingest.py")
-        subprocess.run([sys.executable, tool], cwd=cwd)
+        cmd_exec_tool("ingest.py", [], cwd=cwd)
 
     if os.path.isfile(cat_file):
         items = json.load(open(cat_file, encoding="utf-8"))
@@ -325,15 +317,22 @@ def cmd_new(args):
     return cmd_init(args)
 
 
-def cmd_exec_tool(script_name, extra_args):
-    cwd = os.getcwd()
-    tool_path = os.path.join(cwd, "tools", script_name)
-    if not os.path.isfile(tool_path):
-        tool_path = os.path.join(TOOLS_DIR, script_name)
-    if not os.path.isfile(tool_path):
+def cmd_exec_tool(script_name, extra_args, cwd=None):
+    """Única forma de lanzar herramientas: tools/ del proyecto primero, luego el paquete (también al importar)."""
+    if sys.version_info < (3, 11):
+        sys.exit("❌ WVF requiere Python 3.11 o superior para dar prioridad a tools/ del proyecto. Ejecuta ./install.sh.")
+    cwd = cwd or os.getcwd()
+    cmd = env_config.tool_command(script_name, extra_args, root=cwd)
+    if not os.path.isfile(cmd[1]):
         sys.exit(f"❌ Herramienta no encontrada: {script_name}")
-    cmd = [sys.executable, tool_path] + extra_args
-    return subprocess.run(cmd, cwd=cwd).returncode
+    return subprocess.run(cmd, cwd=cwd, env=env_config.tool_env(cwd)).returncode
+
+
+def cmd_tool(args):
+    name = args.name
+    if not os.path.splitext(name)[1]:
+        name = next((name + ext for ext in (".py", ".sh") if os.path.isfile(env_config.tool_path(name + ext, os.getcwd()))), name + ".py")
+    return cmd_exec_tool(name, args.args)
 
 
 def cmd_serve(args):
@@ -452,6 +451,11 @@ def main():
     # copy
     subparsers.add_parser("copy", help="Guía para generación de copys multicanal")
 
+    # tool
+    p_tool = subparsers.add_parser("tool", help="Ejecuta una herramienta del paquete (o la versión propia del proyecto en tools/)")
+    p_tool.add_argument("name", help="Nombre de la herramienta, p. ej. make_prompts o flow_submit")
+    p_tool.add_argument("args", nargs=argparse.REMAINDER, help="Argumentos para la herramienta")
+
     args, unknown = parser.parse_known_args()
 
     if not args.command:
@@ -505,6 +509,8 @@ def main():
         cmd_serve(args)
     elif args.command == "copy":
         cmd_copy(args)
+    elif args.command == "tool":
+        sys.exit(cmd_tool(args))
 
 
 if __name__ == "__main__":

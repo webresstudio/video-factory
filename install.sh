@@ -44,7 +44,7 @@ echo "✓ uv disponible: $UV_BIN"
 # 4. Configurar Entorno Virtual de Python (.venv)
 if [ ! -d "$DIR/.venv" ]; then
   echo "📦 Creando entorno virtual Python en $DIR/.venv..."
-  "$UV_BIN" venv "$DIR/.venv"
+  "$UV_BIN" venv --python ">=3.11" "$DIR/.venv"
 fi
 VENV_PY="$DIR/.venv/bin/python"
 

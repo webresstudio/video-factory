@@ -183,6 +183,10 @@ wvf share --send-wa --contact "William Romero"
 
 # 12. Corrección quirúrgica de una palabra (e.g. 'API' por 'ápi')
 wvf fix-word L01 "API" "la ápi"
+
+# 13. Cualquier otra herramienta del pipeline (prompts, Flow, inspección)
+wvf tool make_prompts
+wvf tool inspect_clip L01
 ```
 
 ---
@@ -236,7 +240,9 @@ Cada cliente o proyecto nuevo puede tener sus propias URLs de trabajo en Google 
 
 La plantilla incluida es el ejemplo visual de WhatsApp, con un motor completo. Al crear un proyecto se abre una vista previa con tiempos estimados y un aviso de ejemplo. Esos tiempos no se pueden exportar: primero hay que adaptar el guion, verificar sus hechos, generar las tomas y ejecutar `wvf timeline`. Para otros temas, adaptar también `index.html` y los anclajes de `engine.js`.
 
-`wvf init` agrega archivos faltantes y conserva configuración, herramientas y contenido existente. `--force` reemplaza archivos distribuidos por la plantilla y el kit; los archivos personalizados ajenos al kit se conservan. El instalador conserva skills personalizadas existentes.
+**Cada proyecto guarda solo lo que se edita** (`engine.js`, `index.html`, `style.css`, guion, timing y medios). Las herramientas del pipeline viven únicamente en este paquete, así que cada arreglo llega a todos los videos sin actualizar nada. Si un video necesita una herramienta distinta, se copia solo ese archivo a su carpeta `tools/`: `wvf` la usa en lugar de la del paquete, y los imports buscan primero en `tools/` y después en el paquete. Las herramientas se ejecutan siempre a través de `wvf`, por ejemplo `wvf tool make_prompts` o `wvf tool flow_submit --dur 8 --res 720p --prompt-file prompts/L01.txt`, no con `python tools/...`. `wvf start` muestra qué herramientas propias tiene cada proyecto. Se requiere Python 3.11 o superior.
+
+`wvf init` agrega archivos faltantes y conserva la configuración y el contenido existente. `--force` reemplaza los archivos de la plantilla. Ninguno de los dos toca `tools/`. El instalador conserva skills personalizadas existentes.
 
 `wvf qa` devuelve un código distinto de cero si falla resolución, frame rate, codec, canales, volumen o la comparación de la transcripción con el guion. La transcripción se ejecuta aunque falle lo técnico, para que el informe muestre todos los problemas. Genera `check/qa_report.json` y una hoja de contactos que cubre todo el video, en el `check/` del proyecto que contiene el archivo auditado, aunque el comando se ejecute desde otra carpeta. `--technical-only` audita únicamente parámetros técnicos; no aprueba claridad vocal. La comparación de palabras no sustituye escuchar y revisar el video.
 
