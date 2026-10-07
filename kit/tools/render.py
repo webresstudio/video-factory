@@ -14,7 +14,7 @@ import sys
 import time
 from multiprocessing import Process
 
-from env_config import get_project_root
+from env_config import get_master_path, get_project_root
 HERE = get_project_root()
 from env_config import get_preview_url
 URL = get_preview_url()
@@ -103,8 +103,7 @@ def main():
     with open(lst, "w") as fh:
         for i, _, _ in ranges:
             fh.write(f"file 'seg_{i:02d}.mp4'\n")
-    name = "test_render.mp4" if a.test else "whatsapp_ahorro_master.mp4"
-    out = os.path.join(HERE, name)
+    out = os.path.join(HERE, "test_render.mp4") if a.test else get_master_path(HERE)
     subprocess.run([FFMPEG, "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", lst,
                     "-ss", str(off / a.fps), "-i", os.path.join(HERE, "audio", "master.wav"),
                     "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "256k",

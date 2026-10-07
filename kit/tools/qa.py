@@ -9,7 +9,7 @@ from pathlib import Path
 import re
 import subprocess
 import unicodedata
-from env_config import get_ffmpeg, get_ffprobe, get_project_root
+from env_config import find_master, get_ffmpeg, get_ffprobe, get_project_root
 
 
 def tokens(text):
@@ -84,11 +84,18 @@ def main(argv=None):
     args = ap.parse_args(argv)
     if not 0 <= args.max_wer <= 1:
         ap.error('--max-wer debe estar entre 0 y 1')
-    root = Path(get_project_root())
-    candidates = sorted(root.glob('*_master.mp4'))
-    if not args.file and not candidates:
-        ap.error('No se encontró un master MP4; especifica el archivo.')
-    target = Path(args.file).resolve() if args.file else candidates[0]
+    if args.file:
+        target = Path(args.file).resolve()
+        root = Path(get_project_root(target))
+    else:
+        root = Path(get_project_root())
+        try:
+            master = find_master(str(root))
+        except RuntimeError as exc:
+            ap.error(str(exc))
+        if not master:
+            ap.error('No se encontró un master MP4; especifica el archivo.')
+        target = Path(master)
     report = {'file': str(target), 'scope': 'technical_only' if args.technical_only else 'full', 'errors': []}
     try:
         probe = subprocess.run([get_ffprobe(), '-v', 'error', '-show_streams', '-show_format', '-of', 'json', str(target)], capture_output=True, text=True, check=True)
@@ -97,10 +104,13 @@ def main(argv=None):
         report['errors'].extend(audit_metadata(report['metadata'], report['loudness']))
     except Exception as exc:
         report['errors'].append(f'No se pudo medir el master: {exc}')
-    if not args.technical_only and not report['errors']:
+    # Transcribe even after technical failures so the report shows every problem; skip only unreadable files.
+    if not args.technical_only and 'metadata' in report:
         try:
             script = json.loads((root/'script.json').read_text(encoding='utf-8'))
             expected = ' '.join(line.get('spoken_text', line['text']) for line in script)
+            from whisper_compat import patch_av_open
+            patch_av_open()
             from faster_whisper import WhisperModel
             segments, _ = WhisperModel('small', device='cpu', compute_type='int8').transcribe(str(target), language='es', vad_filter=False)
             actual = ' '.join(segment.text.strip() for segment in segments)
@@ -112,8 +122,14 @@ def main(argv=None):
     check = root/'check'; check.mkdir(parents=True, exist_ok=True)
     if target.is_file():
         try:
+            duration = float(report.get('metadata', {}).get('format', {}).get('duration', 0))
+        except (TypeError, ValueError):
+            duration = 0
+        # 12 tiles spread over the whole video, not only its first 24 s.
+        rate = 12 / duration if math.isfinite(duration) and duration > 0 else 0.5
+        try:
             subprocess.run([get_ffmpeg(), '-y', '-loglevel', 'error', '-i', str(target),
-                '-vf', 'fps=0.5,scale=270:-1,tile=6x2', '-frames:v', '1', str(check/'qa_master_sheet.jpg')], capture_output=True, text=True, check=True)
+                '-vf', f'fps={rate:.6f},scale=270:-1,tile=6x2', '-frames:v', '1', str(check/'qa_master_sheet.jpg')], capture_output=True, text=True, check=True)
         except subprocess.CalledProcessError as exc:
             report['errors'].append(f'No se pudo generar la hoja de contactos: {exc}')
     report['passed'] = not report['errors']

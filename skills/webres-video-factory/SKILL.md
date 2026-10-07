@@ -124,7 +124,7 @@ WVF is the official video production standard of **Webres Studio**. It replaces 
   ```bash
   wvf render --workers 4 --fps 60
   ```
-* Muxes video chunks with `audio/master.wav` into `whatsapp_ahorro_master.mp4`.
+* Muxes video chunks with `audio/master.wav` into `nombre_del_proyecto_master.mp4`, named after the project folder (e.g. `SCALA OS Broma Ad` → `scala_os_broma_ad_master.mp4`). `wvf qa` and `wvf share` pick that file; if it is missing and several `*_master.mp4` exist, they stop and ask for the path.
 
 ### Phase 8: Technical & Vocal QA
 * Run comprehensive audit:

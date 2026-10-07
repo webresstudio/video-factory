@@ -21,7 +21,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'kit/tools'))
 import qa
 import fix_word
+import share
 import wajs
+import whisper_compat
+import env_config
 
 
 def load_cli():
@@ -143,6 +146,87 @@ class RegressionTests(unittest.TestCase):
         with patch.dict(os.environ,{'WVF_PROJECT_ROOT':str(p)}),patch.dict(sys.modules,{'faster_whisper':fake}),patch.object(qa.subprocess,'run',return_value=result),patch.object(qa,'measure_loudness',return_value={'input_i':'-14','input_tp':'-1.2'}),contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(qa.main([str(video)]),1)
         self.assertIn('Auditoría vocal incompleta',(p/'check/qa_report.json').read_text())
+
+    def test_master_name_comes_from_project_folder(self):
+        self.assertEqual(env_config.project_slug('/x/SCALA OS Broma Ad'),'scala_os_broma_ad')
+        self.assertEqual(env_config.project_slug('/x/Añoranza  Ágil-2'),'anoranza_agil_2')
+        self.assertEqual(env_config.project_slug('/x/¡¡!!'),'video')
+        self.assertEqual(env_config.get_master_path('/x/Mi Proyecto'),'/x/Mi Proyecto/mi_proyecto_master.mp4')
+
+    def test_find_master_prefers_project_name_and_rejects_ambiguity(self):
+        p=self.tmp/'Mi Proyecto';p.mkdir()
+        (p/'whatsapp_ahorro_master.mp4').write_bytes(b'old')
+        self.assertEqual(env_config.find_master(str(p)),str(p/'whatsapp_ahorro_master.mp4'))
+        (p/'mi_proyecto_master.mp4').write_bytes(b'new')
+        self.assertEqual(env_config.find_master(str(p)),str(p/'mi_proyecto_master.mp4'))
+        (p/'mi_proyecto_master.mp4').unlink();(p/'otro_master.mp4').write_bytes(b'other')
+        with self.assertRaisesRegex(RuntimeError,'varios masters'): env_config.find_master(str(p))
+
+    def run_qa_outside_project(self,video,argv,loudness):
+        result=types.SimpleNamespace(stdout=json.dumps(self.valid_metadata()))
+        cwd=os.getcwd();os.chdir(self.tmp);self.addCleanup(os.chdir,cwd)
+        with patch.dict(os.environ),patch.object(qa.subprocess,'run',return_value=result),patch.object(qa,'measure_loudness',return_value=loudness),contextlib.redirect_stdout(io.StringIO()):
+            os.environ.pop('WVF_PROJECT_ROOT',None)
+            return qa.main([str(video),*argv])
+
+    def test_qa_report_goes_to_project_of_audited_file(self):
+        p=self.new_project();video=p/'share/mobile_share.mp4';video.write_bytes(b'test')
+        self.assertEqual(self.run_qa_outside_project(video,['--technical-only'],{'input_i':'-14','input_tp':'-1.2'}),0)
+        self.assertTrue((p/'check/qa_report.json').is_file());self.assertFalse((self.tmp/'check').exists())
+
+    def test_vocal_audit_runs_even_after_technical_failure(self):
+        p=self.new_project();video=p/'project_master.mp4';video.write_bytes(b'test')
+        calls=[]
+        class Model:
+            def __init__(self,*a,**k): pass
+            def transcribe(self,path,**k):
+                calls.append(path);return [types.SimpleNamespace(text='texto')],None
+        fake=types.ModuleType('faster_whisper');fake.WhisperModel=Model
+        with patch.dict(sys.modules,{'faster_whisper':fake}):
+            self.assertEqual(self.run_qa_outside_project(video,[],{'input_i':'-20','input_tp':'-1.2'}),1)
+        report=json.loads((p/'check/qa_report.json').read_text())
+        self.assertEqual(len(calls),1);self.assertIn('word_error_rate',report)
+        self.assertTrue(any('Volumen integrado' in e for e in report['errors']))
+
+    def fake_ffmpeg(self,cmd,**kwargs):
+        if 'ffprobe' in os.path.basename(cmd[0]):
+            meta={'streams':[{'codec_type':'video'},{'codec_type':'audio'}],'format':{'duration':'10'}}
+            return types.SimpleNamespace(stdout=json.dumps(meta))
+        if cmd[-1].endswith('.mp4'): Path(cmd[-1]).write_bytes(b'mobile')
+        return types.SimpleNamespace(stdout='')
+
+    def test_share_limits_true_peak_and_measures_again(self):
+        master=self.tmp/'p_master.mp4';master.write_bytes(b'master');out=self.tmp/'share/mobile.mp4'
+        with patch.object(share.subprocess,'run',side_effect=self.fake_ffmpeg) as run,patch.object(share,'loudness',side_effect=[(-14.5,0.2),(-14.7,-1.9)]),contextlib.redirect_stdout(io.StringIO()):
+            share.compress(master,out)
+        limiter=run.call_args_list[-1].args[0]
+        self.assertIn(share.LIMITER,limiter);self.assertEqual(limiter[limiter.index('-ar')+1],'48000')
+        self.assertTrue(out.is_file())
+
+    def test_share_does_not_send_when_limited_audio_is_out_of_spec(self):
+        master=self.tmp/'p_master.mp4';master.write_bytes(b'master');out=self.tmp/'share/mobile.mp4'
+        for after in ((-14.5,-0.5),(-16.2,-2.5)):
+            with self.subTest(after=after):
+                with patch.object(share.subprocess,'run',side_effect=self.fake_ffmpeg),patch.object(share,'loudness',side_effect=[(-14.5,0.2),after]),patch.object(wajs,'send_file') as send,contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(share.main(['--master',str(master),'--out',str(out),'--send-wa']),1)
+                send.assert_not_called();self.assertFalse(out.exists())
+
+    def test_whisper_pyav_compat_retries_only_without_metadata_errors(self):
+        calls=[]
+        def old_pyav_open(path, mode='r', **kwargs):
+            calls.append((path, mode, dict(kwargs)))
+            if 'metadata_errors' in kwargs:
+                raise TypeError("open() got an unexpected keyword argument 'metadata_errors'")
+            return 'container'
+        wrapped=whisper_compat.compatible_open(old_pyav_open)
+        self.assertEqual(wrapped('audio.wav',metadata_errors='ignore'),'container')
+        self.assertEqual(calls,[('audio.wav','r',{'metadata_errors':'ignore'}),('audio.wav','r',{})])
+        self.assertIs(whisper_compat.compatible_open(wrapped),wrapped)
+
+        def unrelated_type_error(path, **kwargs):
+            raise TypeError('decoder configuration invalid')
+        with self.assertRaisesRegex(TypeError,'decoder configuration invalid'):
+            whisper_compat.compatible_open(unrelated_type_error)('audio.wav',metadata_errors='ignore')
 
     def test_fix_word_preserves_length_timestamps_and_unaffected_audio(self):
         sr=48000;t=np.arange(sr)/sr

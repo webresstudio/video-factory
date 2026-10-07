@@ -77,7 +77,7 @@ flowchart TD
     subgraph RENDER ["8. Render Determinista (60 fps)"]
         H1["render.py (Chrome Headless CDP)"]
         H2["4 Workers en Paralelo (x264 CRF 12)"]
-        H3["whatsapp_ahorro_master.mp4"]
+        H3["nombre_del_proyecto_master.mp4"]
     end
 
     subgraph QA_SHARE ["9. QA & Distribución"]
@@ -238,9 +238,11 @@ La plantilla incluida es el ejemplo visual de WhatsApp, con un motor completo. A
 
 `wvf init` agrega archivos faltantes y conserva configuración, herramientas y contenido existente. `--force` reemplaza archivos distribuidos por la plantilla y el kit; los archivos personalizados ajenos al kit se conservan. El instalador conserva skills personalizadas existentes.
 
-`wvf qa` devuelve un código distinto de cero si falla resolución, frame rate, codec, canales, volumen o la comparación de la transcripción con el guion. Genera `check/qa_report.json`. `--technical-only` audita únicamente parámetros técnicos; no aprueba claridad vocal. La comparación de palabras no sustituye escuchar y revisar el video.
+`wvf qa` devuelve un código distinto de cero si falla resolución, frame rate, codec, canales, volumen o la comparación de la transcripción con el guion. La transcripción se ejecuta aunque falle lo técnico, para que el informe muestre todos los problemas. Genera `check/qa_report.json` y una hoja de contactos que cubre todo el video, en el `check/` del proyecto que contiene el archivo auditado, aunque el comando se ejecute desde otra carpeta. `--technical-only` audita únicamente parámetros técnicos; no aprueba claridad vocal. La comparación de palabras no sustituye escuchar y revisar el video.
 
-`wvf share` calcula el bitrate con la duración, hace dos pasadas y comprueba que la salida mida menos de 15 MiB antes de enviar. Con `--send-wa`, WhatsApp Web debe estar abierto en Chrome y el chat seleccionado debe coincidir exactamente con `--contact`. La automatización requiere los permisos y selectores disponibles en esa sesión; los errores se devuelven al CLI.
+`wvf share` calcula el bitrate con la duración, hace dos pasadas y comprueba que la salida mida menos de 15 MiB y que su true peak no supere −1 dBTP antes de enviar. Si la recompresión lo supera, limita el audio y vuelve a medir; si aún no cumple, se detiene sin enviar.
+
+`wvf render` guarda el master con el nombre de la carpeta del proyecto, por ejemplo `scala_os_broma_ad_master.mp4`. `wvf qa` y `wvf share` usan ese archivo. Si no existe y hay varios `*_master.mp4`, piden la ruta en lugar de elegir uno. Con `--send-wa`, WhatsApp Web debe estar abierto en Chrome y el chat seleccionado debe coincidir exactamente con `--contact`. La automatización requiere los permisos y selectores disponibles en esa sesión; los errores se devuelven al CLI.
 
 Para corregir una palabra de voz en off con una toma ya descargada:
 
