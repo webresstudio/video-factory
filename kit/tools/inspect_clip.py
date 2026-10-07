@@ -19,6 +19,8 @@ wav = os.path.join(ROOT, "flow", f"{lid}.wav")
 subprocess.run([FF, "-y", "-loglevel", "error", "-i", dst, "-vn", "-ac", "1", "-ar", "48000", wav], check=True)
 sheet = os.path.join(ROOT, "check", f"{lid}_frames.jpg")
 subprocess.run([FF, "-y", "-loglevel", "error", "-i", dst, "-vf", "fps=0.75,scale=270:-1,tile=6x1", "-frames:v", "1", sheet], check=True)
+from whisper_compat import patch_av_open
+patch_av_open()
 from faster_whisper import WhisperModel
 m = WhisperModel("small", device="cpu", compute_type="int8")
 segs, info = m.transcribe(wav, language="es", word_timestamps=True, vad_filter=False)

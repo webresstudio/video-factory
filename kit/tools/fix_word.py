@@ -61,6 +61,8 @@ def apply_patch(original, words, target_index, patch_audio, patch_words, patch_i
 
 
 def transcribe(path):
+    from whisper_compat import patch_av_open
+    patch_av_open()
     from faster_whisper import WhisperModel
     segments, _ = WhisperModel('small', device='cpu', compute_type='int8').transcribe(str(path), language='es', word_timestamps=True, vad_filter=False)
     return [{'w':w.word.strip(), 't':round(w.start,3), 'e':round(w.end,3)} for segment in segments for w in segment.words]
