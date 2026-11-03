@@ -299,13 +299,41 @@ class RegressionTests(unittest.TestCase):
     def test_installer_preserves_custom_skill(self):
         custom=self.tmp/'skills/webres-video-factory';custom.mkdir(parents=True);(custom/'SKILL.md').write_text('CUSTOM')
         # Execute the real registration block without dependency downloads or global changes.
-        source=(ROOT/'install.sh').read_text();block=source[source.index('for skill_path in'):source.index('\necho "✓ 7 Skills')]
-        env=dict(os.environ,DIR=str(ROOT),GLOBAL_SKILLS_DIR=str(self.tmp/'skills'),USER_AGENTS_DIR=str(self.tmp/'agents'))
-        (self.tmp/'agents').mkdir()
+        source=(ROOT/'install.sh').read_text();block=source[source.index('for skill_path in'):source.index('\necho "✓ 14 Skills')]
+        env=dict(os.environ,DIR=str(ROOT),GLOBAL_SKILLS_DIR=str(self.tmp/'skills'),USER_AGENTS_DIR=str(self.tmp/'agents'),CLAUDE_SKILLS_DIR=str(self.tmp/'claude'))
+        (self.tmp/'agents').mkdir();(self.tmp/'claude').mkdir()
         result=subprocess.run(['bash','-c',block],env=env,capture_output=True,text=True)
         self.assertEqual(result.returncode,0,result.stderr);self.assertEqual((custom/'SKILL.md').read_text(),'CUSTOM')
         self.assertTrue((self.tmp/'agents/webres-video-factory').is_symlink())
+        self.assertTrue((self.tmp/'claude/webres-video-factory').is_symlink())
+        self.assertTrue((self.tmp/'agents/hyperframes-causal-cursor').is_symlink())
         self.assertEqual(subprocess.run(['bash','-c',block],env=env,capture_output=True).returncode,0)
+
+    def test_audit_script_subcommand_runs(self):
+        sample=ROOT/'skills/viral-listicle-story/scripts/audit_listicle.py'
+        self.assertTrue(sample.is_file())
+        draft=self.tmp/'draft.json'
+        draft.write_text(json.dumps({
+            'takes': [
+                {'id': 'L01', 'cuts_sec': [1.8, 3.2], 'screen_text': 'CREA APPS SIN CÓDIGO', 'spoken': 'Suelta Claude Code un minuto. Sé que le haces el feo a Antigravity, pero es mejor.'},
+                {'id': 'L02', 'cuts_sec': [2.8, 2.4], 'screen_text': 'OTROS CHATS FALLAN', 'spoken': 'Puro desastre. Sin ser experto, pides una página en cualquier otro chat y te arruina toda la tarde.'},
+                {'id': 'L03', 'cuts_sec': [1.2, 3.5], 'screen_text': '1 · /grill-me', 'spoken': 'Aquí no. Pones grill-me y te entrevista antes con respuestas sugeridas.'},
+                {'id': 'L04', 'cuts_sec': [2.5, 2.5], 'screen_text': 'LOS COMANDOS', 'spoken': 'Mándaselo a tu amigo sin código o al que sigue casado con Claude Code.'},
+            ]
+        }))
+        res=self.run_cli('audit-script',draft,'--lang','es')
+        self.assertEqual(res.returncode,0,res.stdout+res.stderr)
+        guion_md=self.tmp/'GUION.md'
+        guion_md.write_text('\n'.join([
+            '| Toma | Cortes | Texto | Acción | Voz | Pal |',
+            '|---|---|---|---|---|---|',
+            '| L01 | PC (0–1.8s) → PD (1.8–5.0s) | BUILD APPS FAST | A/B | Quit worshipping Claude Code for forty-five seconds. Antigravity has six commands way better. | 13 |',
+            '| L02 | GRAF (5.0–7.8s) → PV (7.8–10.2s) | OTHER CHATS FAIL | Stake | Pure mess. Normal AI chats guess wrong and wreck your whole afternoon. | 12 |',
+            '| L03 | PC (10.2–11.4s) → PD (11.4–14.9s) | 1 · /grill-me | Interview | Not here. Type grill-me first, and it interviews you with suggested answers. | 12 |',
+            '| L04 | GRAF (14.9–17.4s) → PD (17.4–19.9s) | SAVE THIS MAP | Save + DM | Send this to your friend with zero code, or the one married to Claude Code. | 15 |',
+        ]))
+        res_md=self.run_cli('audit-script',guion_md,'--lang','en')
+        self.assertEqual(res_md.returncode,0,res_md.stdout+res_md.stderr)
 
 
 if __name__=='__main__':unittest.main()

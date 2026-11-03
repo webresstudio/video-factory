@@ -60,13 +60,15 @@ echo "🌐 Verificando binario Chromium para Playwright..."
 echo "🧠 Registrando skills de producción en el sistema de agentes..."
 GLOBAL_SKILLS_DIR="$HOME/.gemini/config/skills"
 USER_AGENTS_DIR="$HOME/.agents/skills"
+CLAUDE_SKILLS_DIR="$HOME/.claude/skills"
 mkdir -p "$GLOBAL_SKILLS_DIR"
 mkdir -p "$USER_AGENTS_DIR"
+mkdir -p "$CLAUDE_SKILLS_DIR"
 
 for skill_path in "$DIR/skills/"*; do
   if [ -d "$skill_path" ]; then
     s_name="$(basename "$skill_path")"
-    for skill_dir in "$GLOBAL_SKILLS_DIR" "$USER_AGENTS_DIR"; do
+    for skill_dir in "$GLOBAL_SKILLS_DIR" "$USER_AGENTS_DIR" "$CLAUDE_SKILLS_DIR"; do
       destination="$skill_dir/$s_name"
       if [ -L "$destination" ] && [ "$(readlink "$destination")" = "$skill_path" ]; then
         continue
@@ -79,7 +81,7 @@ for skill_path in "$DIR/skills/"*; do
     done
   fi
 done
-echo "✓ 7 Skills de diseño y retención registradas globalmente."
+echo "✓ 14 Skills de diseño, retención y animación al unísono registradas globalmente."
 
 # 7. Crear enlace simbólico de wvf en PATH
 echo "⚡ Configurando comando global 'wvf'..."

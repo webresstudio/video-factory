@@ -114,7 +114,7 @@ El instalador:
 1. Comprueba o instala `ffmpeg` y `uv`.
 2. Crea el entorno virtual en `.venv` con librerías científicas (`numpy`, `scipy`, `soundfile`, `faster-whisper`, `playwright`, `pillow`).
 3. Descarga el binario Chromium para Playwright.
-4. Vincula automáticamente las 7 skills a `~/.gemini/config/skills` y `~/.agents/skills`.
+4. Vincula automáticamente las 7 skills a `~/.gemini/config/skills` (Antigravity IDE), `~/.agents/skills` (Codex) y `~/.claude/skills` (Claude Code).
 5. Registra el comando global `wvf` en tu terminal (`~/.local/bin/wvf`).
 
 Comprueba que todo esté en orden:

@@ -91,6 +91,13 @@ def cmd_doctor(args):
         "commercial-video-transitions-2026",
         "social-copy-multichannel-2026",
         "impeccable",
+        "viral-listicle-story",
+        "tiktok-promote-ui-demos",
+        "hyperframes-causal-cursor",
+        "manim-progressive-proof",
+        "gsap-word-sequencer",
+        "shotcraft-ui-recipes",
+        "lottie-attention-choreography",
     ]
     all_skills_ok = True
     for s in req_skills:
@@ -451,6 +458,12 @@ def main():
     # copy
     subparsers.add_parser("copy", help="Guía para generación de copys multicanal")
 
+    # audit-script
+    p_audit = subparsers.add_parser("audit-script", help="Valida guion viral de lista/historia (ES/EN)")
+    p_audit.add_argument("draft", help="Ruta al archivo JSON o GUION.md del guion")
+    p_audit.add_argument("--lang", choices=["es", "en"], default="es", help="Idioma del guion (es o en)")
+    p_audit.add_argument("--output", help="Ruta opcional para reporte JSON")
+
     # tool
     p_tool = subparsers.add_parser("tool", help="Ejecuta una herramienta del paquete (o la versión propia del proyecto en tools/)")
     p_tool.add_argument("name", help="Nombre de la herramienta, p. ej. make_prompts o flow_submit")
@@ -509,6 +522,12 @@ def main():
         cmd_serve(args)
     elif args.command == "copy":
         cmd_copy(args)
+    elif args.command == "audit-script":
+        auditor = os.path.join(SKILLS_DIR, "viral-listicle-story", "scripts", "audit_listicle.py")
+        cmd = [sys.executable, auditor, args.draft, "--lang", args.lang]
+        if args.output:
+            cmd += ["--output", args.output]
+        sys.exit(subprocess.call(cmd))
     elif args.command == "tool":
         sys.exit(cmd_tool(args))
 

@@ -46,12 +46,18 @@ WVF is the official video production standard of **Webres Studio**. It replaces 
   ```
 * Generates `facts_candidates.md` and `media_catalog.json`; preserves `facts.md`. Extracted bullets are unverified candidates. Confirm sources and dates before adding facts to `facts.md`. PDF/DOCX extraction is not built into ingest; extract these documents with appropriate document tools first.
 
-### Phase 2: Scriptwriting (`script.json`)
-* Structure: 8–10 lines of 8–10 seconds each (18–22 words per line).
-* Read skill: `internet-video-2026` (hook in <1.0s, re-hooks at tip numbers, seamless loop ending).
+### Phase 2: Scriptwriting (`script.json` / `GUION.md`)
+* Read [`references/story-led-scriptwriting.md`](references/story-led-scriptwriting.md) to plan the narrative and shot language together, including camera coverage, cut rhythm, text/image composition, purposeful motion, retention beats, and CTA.
+* **For Listicle / "N Things / N Commands / N Tools" Videos (`viral-listicle-story`):**
+  - Activate `viral-listicle-story` mandatory laws: NEVER enumerate as a flat spoken dictionary (`"Uno… Dos… Tres…"`). Chain all `N` items into ONE continuous `Pero / Entonces` story with `L01` 3-Channel Non-Duplication (`< 40%` overlap between spoken hook and `≤ 6-word` screen headline), `L02` Human Pain/Stake (`#040/#072` TikTok Promote) before item `#1`, high sentence-length burstiness (`CV ≥ 0.55`), spatial mid-roll CTA (`"aquí al lado"` pointing right `x ≈ 900px`, `#113` TikTok), and Dual-Engine Closing (Named-Persona DM Send in voice + Collectible `N/N` Map Card on screen for Saves `#031/#079` + verbal loop).
+  - Run `wvf audit-script borrador.json --lang es` (or `audit_listicle.py`) and verify `PASS` before showing the script.
+* Structure every group of related shots as its own micro-story: **problem → hook → solution**. Plan these three beats for each group; do not rely on a single video-level hook and payoff.
+* Treat the template structure of 8–10 lines, 6–8 seconds (`R3`), and 15–20 words per line (max 22 at `1.0x`, strictly zero `atempo`) as the Flow `1.0x` vocal budget. Fit the spoken script to the topic, evidence, platform, target duration, and natural neutral Guatemalan Spanish delivery.
+* Keep `script.json` as the spoken-script and presenter-direction source. Put shot-level visual decisions in the project's edit plan or production notes so dialogue does not become cluttered with camera and animation instructions.
+* Also read `internet-video-2026` and `tiktok-promote-ui-demos` (`2.135B`-view TikTok Promote Creative Center rules: Safe Zone `x: 72–910px`, `y: 200–1320px`; dual subtitle export `1745px` IG/Shorts vs `1380px` TikTok `?tiktok=1`).
 * **Crucial Rule on Pronunciation:**
   Flow @me spells out uppercase acronyms (e.g., "API" becomes "a-pe-i-ai"). Write phonetic equivalents in the script or prompt (`"la ápi"`).
-* **USER APPROVAL CHECKPOINT 1:** Present the script table to the user. Do not generate audio until approved.
+* **USER APPROVAL CHECKPOINT 1:** Present the spoken-script table with its concise shot plan or storyboard. Do not generate Flow narration or commit to expensive visual production until the user approves the content and direction.
 
 ### Phase 3: Presenter & Voice Generation (Flow `@me`)
 * Check avatar likeness chip:
@@ -76,15 +82,22 @@ WVF is the official video production standard of **Webres Studio**. It replaces 
 * Compresses quiet pauses on voiceover-only lines.
 * Outputs `audio/voice.wav` and `timing.js`.
 
-### Phase 5: Motion Graphics Engine (`engine.js`)
-* Read skills:
+### Phase 5: Motion Graphics & Unison Explanatory Engine (`engine.js` / `serie.js` + `unison.js`)
+* Read foundational design & transition skills:
   - `motion-kinetic-typography`: Unboxed Swiss typography, Lucide SVG icons, zero emojis.
   - `dynamic-text-animations`: Horizon unmask, character cascades, hairline draw-ins.
   - `commercial-video-transitions-2026`: Iris match-cuts, knife-edge shutters, 2.5D spatial pushes (8–18 frames).
   - `impeccable`: Craft-floor adherence, no gradients on text, no generic cards.
+  - `tiktok-promote-ui-demos`: Safe Zone `x: 72–910px, y: 200–1320px`, `2.5x` single-control UI magnification, `?tiktok=1` subtitle shift (`top: 1380px`).
+* Read the **5 Unison Explanatory Animation Skills** (for visual proof locked to spoken words):
+  - `hyperframes-causal-cursor` (`heygen-com/hyperframes` ★ 77.7K): Oversized `90–124px` physical cursor (`U.createCursor`), same-frame click ignition on `W()` / `S.W()`, cut-the-curve vector seams, zero idle wobble, and 3-view seam/mobile (`360px`) QA.
+  - `manim-progressive-proof` (`3b1b/manim` ★ 96.0K + `motion-canvas` ★ 19.7K): `Wrong → Right` in-situ state morphing (`U.morphPair`), spotlight dimming (`opacity: 0.24` via `U.spotlight`), and `ValueTracker` physical meters.
+  - `gsap-word-sequencer` (`greensock/gsap-skills` ★ 17.7K): Semantic word-clock label blocks, relative offsets, zero DOM reflow inside `renderAt(t)` (`transform`, `opacity`, `clip-path` only).
+  - `shotcraft-ui-recipes` (`Vincentwei1021/video-shotcraft` ★ 16.2K): Real product-token UI surfaces (`slash-interview-card`, `defect-to-rule-stamp`, `parallel-lanes-sprint`, `collectible-cheat-sheet`) and `≤ 3` full-camera slams.
+  - `lottie-attention-choreography` (`LottieFiles/motion-design-skill` ★ 2.7K + `remotion-dev/skills` ★ 6.1K): Single visual protagonist per instant, `1/3` simultaneous active elements rule (`U.staggerIn`), `20–30%` counter-motion parallax, real-font glyph measurement.
 * Synchronize elements using:
   ```javascript
-  const t_start = W("L05", "mil"); // exact second where presenter says "mil"
+  const t_start = W("L05", "mil"); // or S.W("mil") in DEM scenes
   ```
 * Preview frames rapidly:
   ```bash
