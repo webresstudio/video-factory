@@ -23,6 +23,8 @@ import qa
 import fix_word
 import share
 import wajs
+import chromejs
+import social_analytics
 import whisper_compat
 import env_config
 
@@ -299,7 +301,7 @@ class RegressionTests(unittest.TestCase):
     def test_installer_preserves_custom_skill(self):
         custom=self.tmp/'skills/webres-video-factory';custom.mkdir(parents=True);(custom/'SKILL.md').write_text('CUSTOM')
         # Execute the real registration block without dependency downloads or global changes.
-        source=(ROOT/'install.sh').read_text();block=source[source.index('for skill_path in'):source.index('\necho "✓ 14 Skills')]
+        source=(ROOT/'install.sh').read_text();block=source[source.index('for skill_path in'):source.index('\necho "✓ 15 Skills')]
         env=dict(os.environ,DIR=str(ROOT),GLOBAL_SKILLS_DIR=str(self.tmp/'skills'),USER_AGENTS_DIR=str(self.tmp/'agents'),CLAUDE_SKILLS_DIR=str(self.tmp/'claude'))
         (self.tmp/'agents').mkdir();(self.tmp/'claude').mkdir()
         result=subprocess.run(['bash','-c',block],env=env,capture_output=True,text=True)
@@ -307,6 +309,7 @@ class RegressionTests(unittest.TestCase):
         self.assertTrue((self.tmp/'agents/webres-video-factory').is_symlink())
         self.assertTrue((self.tmp/'claude/webres-video-factory').is_symlink())
         self.assertTrue((self.tmp/'agents/hyperframes-causal-cursor').is_symlink())
+        self.assertTrue((self.tmp/'agents/social-analytics-audit').is_symlink())
         self.assertEqual(subprocess.run(['bash','-c',block],env=env,capture_output=True).returncode,0)
 
     def test_audit_script_subcommand_runs(self):
@@ -334,6 +337,144 @@ class RegressionTests(unittest.TestCase):
         ]))
         res_md=self.run_cli('audit-script',guion_md,'--lang','en')
         self.assertEqual(res_md.returncode,0,res_md.stdout+res_md.stderr)
+
+    def test_chromejs_lists_navigates_and_opens_missing_tab_when_requested(self):
+        sample_tabs = "1\t1\thttps://www.tiktok.com/tiktokstudio/analytics\tTikTok Studio\n1\t2\thttps://www.instagram.com/webresstudio/\tInstagram\n"
+        with patch.object(chromejs, 'run_applescript', return_value=sample_tabs):
+            filtered = chromejs.list_tabs('tiktok')
+            self.assertEqual(len(filtered), 1)
+            self.assertEqual(filtered[0]['title'], 'TikTok Studio')
+
+        with patch.object(chromejs, 'run_applescript', side_effect=['NO_MATCHING_TAB', 'NAVIGATED_EXISTING', 'READY_DOM']) as mock_osa:
+            output = chromejs.execute_javascript(
+                'document.title',
+                url_match='business.facebook.com',
+                open_if_missing_url='https://business.facebook.com/latest/insights/content',
+                wait_seconds=0,
+            )
+            self.assertEqual(output, 'READY_DOM')
+            self.assertEqual(mock_osa.call_count, 3)
+
+        with patch.object(chromejs, 'run_applescript', return_value='NO_MATCHING_TAB'):
+            with self.assertRaisesRegex(RuntimeError, 'business.facebook.com'):
+                chromejs.execute_javascript('document.title', url_match='business.facebook.com')
+
+    def test_social_analytics_parses_tiktok_meta_and_instagram_studios(self):
+        tiktok_summary = "\n".join([
+            "6 comandos de Google Antigravity",
+            "Publicado el 29/10/2026",
+            "9,457", "1,721", "0", "4", "61",
+            "Vistas del video", "9.5K",
+            "Tiempo promedio de vista", "3.16s",
+            "Vieron el video completo", "0.3%",
+            "Nuevos seguidores", "11",
+            "La mayoría de los espectadores dejaron de mirar el video en el minuto 0:02.",
+            "Para ti", "99.5%",
+            "Buscar", "<0.1%",
+        ])
+        tiktok_audience = "\n".join([
+            "Edad", "18-24", "48%", "25-34", "33%", "35-44", "10%",
+            "Ubicaciones", "Guatemala", "99.5%",
+        ])
+        parsed_tt = social_analytics.parse_tiktok_video_analytics("7702088675", tiktok_summary, tiktok_audience)
+        self.assertEqual(parsed_tt["views"], 9500)
+        self.assertEqual(parsed_tt["likes"], 1721)
+        self.assertEqual(parsed_tt["saves"], 61)
+        self.assertEqual(parsed_tt["average_watch_seconds"], 3.16)
+        self.assertEqual(parsed_tt["watched_full_percent"], 0.3)
+        self.assertEqual(parsed_tt["primary_dropoff_timestamp"], "0:02")
+        self.assertEqual(parsed_tt["age_brackets"]["18-24"], 48.0)
+
+        overview = social_analytics.parse_tiktok_account_overview(
+            "Fuente de tráfico\nPara ti\n98.5%\nBuscar\n0.3%",
+            "En los últimos 7 días, tus espectadores estuvieron más activos el 3 nov entre las 1pm y las 2pm.",
+        )
+        self.assertEqual(overview["account_search_traffic_percent"], 0.3)
+        self.assertEqual(overview["peak_activity_window"], "1pm y las 2pm")
+
+        meta_rows = [
+            ["Title", "Date", "Views", "Reach", "Viewers", "Inter", "Likes", "Comm", "Shares", "Saves", "Clicks", "Rep", "Follows", "Watch", "Avg", "3s"],
+            ["6 comandos Antigravity Reel webresstudio Boost", "Fri Nov 6, 7:00am", "147", "110", "--", "17", "12", "2", "0", "0", "--", "--", "0", "19m 20s", "10s", "--"],
+            ["4 noticias tech Reel Crossposted Webres Studio, webresstudio", "Mon Nov 2, 8:30am", "300", "--", "199", "17", "10", "3", "0", "0", "0", "--", "0", "419,679", "2s", "15"],
+            ["4 noticias tech Reel Crossposted Webres Studio, webresstudio", "Mon Nov 2, 8:30am", "300", "--", "199", "17", "10", "3", "0", "0", "0", "--", "0", "419,679", "2s", "15"],
+        ]
+        parsed_meta = social_analytics.parse_meta_business_suite_rows(meta_rows)
+        self.assertEqual(len(parsed_meta), 2)
+        self.assertFalse(parsed_meta[0]["is_crossposted"])
+        self.assertEqual(parsed_meta[0]["average_play_seconds"], 10.0)
+        self.assertTrue(parsed_meta[1]["is_crossposted"])
+        self.assertEqual(parsed_meta[1]["average_play_seconds"], 2.0)
+
+        parsed_ig = social_analytics.parse_instagram_reel_insights(
+            "https://www.instagram.com/webresstudio/reel/DfZqfAKAWS3/",
+            "Visualizaciones\nVisualizaciones\n146\nNo seguidores\n75.2%\nEspectadores\n111\nMe gusta\n12\nComentarios\n2\nVeces que se guardó\n0\nVeces que se compartió\n0\nActividad del perfil\n0",
+            {"title": "6 comandos", "time": "2026-11-06", "aiLabel": True},
+        )
+        self.assertEqual(parsed_ig["views"], 146)
+        self.assertEqual(parsed_ig["non_followers_percent"], 75.2)
+        self.assertTrue(parsed_ig["has_ai_content_label"])
+
+    def test_social_analytics_adapts_diagnosis_across_business_models(self):
+        sample_tt = [{
+            "video_id": "v1",
+            "average_watch_seconds": 9.5,
+            "watched_full_percent": 30.0,
+            "primary_dropoff_timestamp": "0:08",
+            "age_brackets": {"18-24": 48.0, "25-34": 30.0},
+        }]
+        sample_ig = [{"views": 400, "saves": 0, "shares": 0, "has_ai_content_label": False}]
+
+        b2b_eval = social_analytics.evaluate_social_performance(
+            business_model="b2b_high_ticket",
+            tiktok_videos=sample_tt,
+            meta_items=[],
+            instagram_reels=sample_ig,
+            tiktok_overview={"account_search_traffic_percent": 5.0},
+        )
+        b2b_codes = {f["code"] for f in b2b_eval["findings"]}
+        self.assertIn("AUDIENCE_AGE_MISMATCH", b2b_codes)
+        self.assertIn("ZERO_SAVES_AND_DM_SHARES", b2b_codes)
+        self.assertIn("WATCH_TIME_BELOW_MODEL_TARGET", b2b_codes)
+        self.assertEqual(b2b_eval["recommended_duration_seconds"], [30, 45])
+
+        ecom_eval = social_analytics.evaluate_social_performance(
+            business_model="ecommerce_b2c",
+            tiktok_videos=sample_tt,
+            meta_items=[],
+            instagram_reels=sample_ig,
+            tiktok_overview={"account_search_traffic_percent": 5.0},
+        )
+        ecom_codes = {f["code"] for f in ecom_eval["findings"]}
+        self.assertNotIn("AUDIENCE_AGE_MISMATCH", ecom_codes)
+        self.assertNotIn("ZERO_SAVES_AND_DM_SHARES", ecom_codes)
+        self.assertNotIn("WATCH_TIME_BELOW_MODEL_TARGET", ecom_codes)
+        self.assertEqual(ecom_eval["recommended_duration_seconds"], [12, 25])
+
+    def test_analytics_cli_subcommand_routes_and_init_persists_social_config(self):
+        project_dir = self.tmp / "avalo_client"
+        res = self.run_cli(
+            "new", "avalo_client",
+            "--path", project_dir,
+            "--client", "AVALO CORP",
+            "--business-model", "b2b_high_ticket",
+            "--ig-handle", "@avalocorp",
+            "--meta-asset-id", "1027787490574070",
+        )
+        self.assertEqual(res.returncode, 0, res.stderr)
+        saved_cfg = json.loads((project_dir / "project_config.json").read_text())
+        self.assertEqual(saved_cfg["social"]["business_model"], "b2b_high_ticket")
+        self.assertEqual(saved_cfg["social"]["instagram_handle"], "avalocorp")
+        self.assertEqual(saved_cfg["social"]["meta_asset_id"], "1027787490574070")
+        meta_url = social_analytics.build_meta_insights_url(
+            social_analytics.load_social_configuration(str(project_dir))
+        )
+        self.assertIn("asset_id=1027787490574070", meta_url)
+
+        cli = load_cli()
+        with patch.object(sys, "argv", ["wvf", "analytics", "--platform", "meta", "--limit", "3", "--model", "b2b_high_ticket"]), patch.object(cli, "cmd_exec_tool", return_value=0) as mock_exec:
+            with self.assertRaises(SystemExit):
+                cli.main()
+        mock_exec.assert_called_once_with("social_analytics.py", ["--platform", "meta", "--limit", "3", "--model", "b2b_high_ticket"])
 
 
 if __name__=='__main__':unittest.main()

@@ -98,6 +98,7 @@ def cmd_doctor(args):
         "gsap-word-sequencer",
         "shotcraft-ui-recipes",
         "lottie-attention-choreography",
+        "social-analytics-audit",
     ]
     all_skills_ok = True
     for s in req_skills:
@@ -176,6 +177,13 @@ def cmd_init(args):
             "preferred_track": "Tech Commercial",
             "ducking_db": -9.5,
             "use_imported_track": True
+        },
+        "social": {
+            "business_model": getattr(args, "business_model", None) or "saas_product",
+            "instagram_handle": (getattr(args, "ig_handle", None) or "").lstrip("@"),
+            "tiktok_handle": (getattr(args, "tiktok_handle", None) or "").lstrip("@"),
+            "meta_asset_id": getattr(args, "meta_asset_id", None) or "",
+            "meta_business_id": getattr(args, "meta_business_id", None) or ""
         }
     }
     cfg_file = os.path.join(dest, "project_config.json")
@@ -188,6 +196,18 @@ def cmd_init(args):
             cfg.setdefault("flow", {})["project_url"] = args.flow_url
         if args.flowmusic_url:
             cfg.setdefault("flowmusic", {})["project_url"] = args.flowmusic_url
+        social_updates = {
+            "business_model": getattr(args, "business_model", None),
+            "instagram_handle": getattr(args, "ig_handle", None).lstrip("@") if getattr(args, "ig_handle", None) else None,
+            "tiktok_handle": getattr(args, "tiktok_handle", None).lstrip("@") if getattr(args, "tiktok_handle", None) else None,
+            "meta_asset_id": getattr(args, "meta_asset_id", None),
+            "meta_business_id": getattr(args, "meta_business_id", None),
+        }
+        if any(social_updates.values()):
+            social_cfg = cfg.setdefault("social", {})
+            for social_key, social_val in social_updates.items():
+                if social_val:
+                    social_cfg[social_key] = social_val
     with open(cfg_file, "w", encoding="utf-8") as fh:
         json.dump(cfg, fh, indent=2, ensure_ascii=False)
     client_name = cfg.get("client_name", client_name)
@@ -385,6 +405,11 @@ def main():
     p_init.add_argument("--client", help="Nombre del cliente o marca (default: Webres Studio)")
     p_init.add_argument("--flow-url", help="URL del proyecto en Google Flow")
     p_init.add_argument("--flowmusic-url", help="URL del proyecto en FlowMusic")
+    p_init.add_argument("--business-model", help="Modelo de negocio (b2b_high_ticket, saas_product, ecommerce_b2c, editorial_news, education_creator)")
+    p_init.add_argument("--ig-handle", help="Handle de Instagram del cliente")
+    p_init.add_argument("--tiktok-handle", help="Handle de TikTok del cliente")
+    p_init.add_argument("--meta-asset-id", help="asset_id de Meta Business Suite")
+    p_init.add_argument("--meta-business-id", help="business_id de Meta Business Suite")
     p_init.add_argument("--from", dest="from_dir", help="Directorio con archivos de investigación o medios para auto-importar")
     p_init.add_argument("--force", action="store_true", help="Sobreescribe archivos de plantilla existentes")
 
@@ -405,6 +430,11 @@ def main():
     p_new.add_argument("--client", help="Nombre del cliente")
     p_new.add_argument("--flow-url", help="URL del proyecto Flow")
     p_new.add_argument("--flowmusic-url", help="URL del proyecto FlowMusic")
+    p_new.add_argument("--business-model", help="Modelo de negocio del cliente")
+    p_new.add_argument("--ig-handle", help="Handle de Instagram del cliente")
+    p_new.add_argument("--tiktok-handle", help="Handle de TikTok del cliente")
+    p_new.add_argument("--meta-asset-id", help="asset_id de Meta Business Suite")
+    p_new.add_argument("--meta-business-id", help="business_id de Meta Business Suite")
     p_new.add_argument("--from", dest="from_dir", help="Directorio con archivos de investigación o medios para auto-importar")
 
     # ingest
@@ -463,6 +493,20 @@ def main():
     p_audit.add_argument("draft", help="Ruta al archivo JSON o GUION.md del guion")
     p_audit.add_argument("--lang", choices=["es", "en"], default="es", help="Idioma del guion (es o en)")
     p_audit.add_argument("--output", help="Ruta opcional para reporte JSON")
+
+    # analytics
+    p_analytics = subparsers.add_parser(
+        "analytics",
+        help="Audita métricas en TikTok Studio, Meta Business Suite e Instagram por modelo de negocio",
+    )
+    p_analytics.add_argument("--platform", choices=["all", "tiktok", "meta", "instagram"], default="all", help="Plataforma a consultar")
+    p_analytics.add_argument("--limit", type=int, default=5, help="Videos recientes a inspeccionar")
+    p_analytics.add_argument("--model", default="", help="Modelo de negocio (b2b_high_ticket, saas_product, ecommerce_b2c, editorial_news, education_creator)")
+    p_analytics.add_argument("--ig", default="", help="Handle de Instagram del cliente")
+    p_analytics.add_argument("--tiktok", default="", help="Handle de TikTok del cliente")
+    p_analytics.add_argument("--meta-asset", default="", help="asset_id en Meta Business Suite")
+    p_analytics.add_argument("--meta-business", default="", help="business_id en Meta Business Suite")
+    p_analytics.add_argument("--out", default="", help="Ruta de salida para el JSON de analítica")
 
     # tool
     p_tool = subparsers.add_parser("tool", help="Ejecuta una herramienta del paquete (o la versión propia del proyecto en tools/)")
@@ -528,6 +572,21 @@ def main():
         if args.output:
             cmd += ["--output", args.output]
         sys.exit(subprocess.call(cmd))
+    elif args.command == "analytics":
+        extra = ["--platform", args.platform, "--limit", str(args.limit)]
+        if args.model:
+            extra += ["--model", args.model]
+        if args.ig:
+            extra += ["--ig", args.ig]
+        if args.tiktok:
+            extra += ["--tiktok", args.tiktok]
+        if args.meta_asset:
+            extra += ["--meta-asset", args.meta_asset]
+        if args.meta_business:
+            extra += ["--meta-business", args.meta_business]
+        if args.out:
+            extra += ["--out", args.out]
+        sys.exit(cmd_exec_tool("social_analytics.py", extra + unknown))
     elif args.command == "tool":
         sys.exit(cmd_tool(args))
 
