@@ -50,9 +50,11 @@ WVF is the official video production standard of **Webres Studio**. It replaces 
 * Read [`references/story-led-scriptwriting.md`](references/story-led-scriptwriting.md) to plan the narrative and shot language together, including camera coverage, cut rhythm, text/image composition, purposeful motion, retention beats, and CTA.
 * **For Listicle / "N Things / N Commands / N Tools" Videos (`viral-listicle-story`):**
   - Activate `viral-listicle-story` mandatory laws: NEVER enumerate as a flat spoken dictionary (`"Uno… Dos… Tres…"`). Chain all `N` items into ONE continuous `Pero / Entonces` story with `L01` 3-Channel Non-Duplication (`< 40%` overlap between spoken hook and `≤ 6-word` screen headline), `L02` Human Pain/Stake (`#040/#072` TikTok Promote) before item `#1`, high sentence-length burstiness (`CV ≥ 0.55`), spatial mid-roll CTA (`"aquí al lado"` pointing right `x ≈ 900px`, `#113` TikTok), and Dual-Engine Closing (Named-Persona DM Send in voice + Collectible `N/N` Map Card on screen for Saves `#031/#079` + verbal loop).
-  - Run `wvf audit-script borrador.json --lang es` (or `audit_listicle.py`) and verify `PASS` before showing the script.
+  - Run `wvf audit-script borrador.json --lang es` (supports `--allow-override`) and verify `PASS` before showing the script.
 * Structure every group of related shots as its own micro-story: **problem → hook → solution**. Plan these three beats for each group; do not rely on a single video-level hook and payoff.
-* Treat the template structure of 8–10 lines, 6–8 seconds (`R3`), and 15–20 words per line (max 22 at `1.0x`, strictly zero `atempo`) as the Flow `1.0x` vocal budget. Fit the spoken script to the topic, evidence, platform, target duration, and natural neutral Guatemalan Spanish delivery.
+* Use the approachable **2-tier phonetic cadence** at `1.0x` (strictly zero `atempo`):
+  - **Tier 1 · Pulso Ágil (`10–18` phonetic words → `~3.5–5.8 s`):** `Omni 1.1 Flash · 6 s · 720p` (`10 credits`), 1 camera+position state.
+  - **Tier 2 · Pulso Extendido (`19–24` phonetic words → `~6.0–7.8 s`):** `Omni 1.1 Flash · 8 s · 720p` (`12 credits`) + a mid-take visual shift at `~4.0–4.8 s` in `engine.js` so no visual state exceeds `6.2 s`.
 * Keep `script.json` as the spoken-script and presenter-direction source. Put shot-level visual decisions in the project's edit plan or production notes so dialogue does not become cluttered with camera and animation instructions.
 * Also read `internet-video-2026` and `tiktok-promote-ui-demos` (`2.135B`-view TikTok Promote Creative Center rules: Safe Zone `x: 72–910px`, `y: 200–1320px`; dual subtitle export `1745px` IG/Shorts vs `1380px` TikTok `?tiktok=1`).
 * **Crucial Rule on Pronunciation:**
@@ -62,10 +64,11 @@ WVF is the official video production standard of **Webres Studio**. It replaces 
 ### Phase 3: Presenter & Voice Generation (Flow `@me`)
 * Check avatar likeness chip:
   Must verify that the user's likeness chip is active in the Flow prompt box before submitting.
-* Run:
+* Lint prompts BEFORE spending credits (blocks quotes in English stage block, exaggerated body words, and consecutive camera repeats):
   ```bash
   wvf tool make_prompts
-  wvf tool flow_submit --dur 8 --res 720p --prompt-file prompts/L01.txt
+  wvf tool flow_qc lint --line L01 --prompt prompts/L01_r1.txt
+  wvf tool flow_submit --dur 6 --res 720p --prompt-file prompts/L01_r1.txt
   ```
 * For on-camera scenes (typically 3 scenes: hook/premise, midpoint, warning), upscale to 1080p via `wvf tool flow_dl1080 L01`.
 * Extract audio and transcribe word timestamps:
@@ -82,7 +85,9 @@ WVF is the official video production standard of **Webres Studio**. It replaces 
 * Compresses quiet pauses on voiceover-only lines.
 * Outputs `audio/voice.wav` and `timing.js`.
 
-### Phase 5: Motion Graphics & Unison Explanatory Engine (`engine.js` / `serie.js` + `unison.js`)
+### Phase 5: Motion Graphics, Retention Sweetspot & Unison Engine (`engine.js` / `serie.js` + `unison.js`)
+* **Mandatory Retention & Spatial Director Skill:**
+  - `wbrs-retention-sweetspot`: Enforces `4.0–6.0 s` visual state pulses (`Cam A/B/C/D × Pos P1..P5` alternation), `#zback` Z-Depth giant typography behind the presenter (`z-index: 14`, `-0.45x` opposite parallax), seamless full-canvas `1080×1920` B-roll with auto-measured RGBA `nativeHairY` (zero `mode: 'half'`, zero `#flash`), `< 0.5 s` Swiss `#FFFFFF` Pie Charts + `84 px` Causal Cursor + collectible `#s9-sheet`, and Story V2 `1255..1415 px` Instagram Sticker corridor. Run `wvf audit-sweetspot` before rendering to emit `check/engineering_manifest.json`.
 * Read foundational design & transition skills:
   - `motion-kinetic-typography`: Unboxed Swiss typography, Lucide SVG icons, zero emojis.
   - `dynamic-text-animations`: Horizon unmask, character cascades, hairline draw-ins.
@@ -104,7 +109,13 @@ WVF is the official video production standard of **Webres Studio**. It replaces 
   wvf frames 1.5 7.8 14.2
   ```
 
-### Phase 6: Audio Architecture & Sound Design (Synthesis & FlowMusic)
+### Phase 6: Audio Architecture & Psychoacoustic Mix (`wbrs-psychoacoustic-mix` + FlowMusic)
+* **Mandatory Psychoacoustic & Harmonic Audit (`wbrs-psychoacoustic-mix`):**
+  - Before mixing any FlowMusic candidate track, audit it with Constant-Q (`Q=34`) CQT analysis:
+    ```bash
+    wvf audit-music audio/candidata.m4a --target-dur 48
+    ```
+  - Enforces Major key (`≥ 80%` CQT diatonic purity, zero minor/chromatic clash under executive voice), melodic energy centered in **Octaves 3–4 (`180–780 Hz`)** avoiding shrill upper octaves (`> 1.6 kHz`), `0` internal splices, consonant root-tuned SFX (`≤ 1` cue per `5 s`), vocal-pocket EQ (`-2.2 dB @ 1.9 kHz`), `-12.0 to -13.5 dB` bed-to-voice delta, and `-14.0 LUFS / -1.5 dBTP` master compliance.
 * **Client Project URL Configuration:**  
   Each project can configure client-specific Google Flow and FlowMusic project URLs in `project_config.json`:
   ```json
@@ -156,35 +167,53 @@ WVF is the official video production standard of **Webres Studio**. It replaces 
   wvf share --send-wa --contact "William Romero"
   ```
 
-### Phase 10: Multi-Channel Social Copy
-* Read skill: `social-copy-multichannel-2026`.
-* Format captions for:
-  - **LinkedIn:** Executive briefing with market context and bottom-line impact.
-  - **YouTube Shorts:** Title <55 characters, description, pinned comment.
-  - **Instagram Reels:** Hook before 125-character cutoff, save/DM keyword.
-  - **TikTok:** Search-query opening line, numbered takeaways, debate prompt.
+### Phase 10: Multi-Channel Social Copy & Professional Presentation Package
+* Read skill: `social-copy-multichannel-2026` and obey `WBRS/AGENTS.md` §E.
+* Format captions with 4-layer multimodal SEO alignment, flawless natural Spanish, open-loop retention, and zero forced agency brochure pitches:
+  - **Instagram Reels:** Searchable meta-title hook `<125` characters before `…más`, open loop to end-card, plus dedicated **Alt Text** (*Configuración avanzada*).
+  - **TikTok:** Natural search-query opening sentence `<80` characters + multi-audience bridge + open loop.
+  - **LinkedIn:** **H.O.O.P.S. 2026** executive framework (searchable hook `<160` chars, orientation, on-screen bridge, `01/02/03` dwell-time breakdown, substantive operational question).
+  - **YouTube Shorts:** Complete idiomatic title `<55` characters, SEO description, and pinned comment.
+* **Professional Video Presentation Package (`AGENTS.md` §E):**
+  Whenever the user requests the **professional presentation of the video** (*«presentación profesional del video»*), always deliver together in a single unified artifact/response (playable directly in Antigravity, never auto-sent to WhatsApp unless explicitly requested):
+  1. **Main Video(s)** (Reels/Shorts/LinkedIn + TikTok Safe Zone edition).
+  2. **All Story Videos** (Instagram Stories + TikTok/WhatsApp editions).
+  3. **Contact Sheet for Every Video** (one unobstructed final-render contact sheet with footer timestamps for the main video + one for every story video).
+  4. **Social Media Prompts / Copy** (`COPYS-REDES.md` updated with IG + Alt Text, TikTok, LinkedIn, Shorts + Story rollout order using **per-brand, per-network empirical optimal windows** where `Facebook ≠ Instagram ≠ TikTok` via `wvf analytics --save-windows`, never a hardcoded hour).
+* **Post-Publish Analytics & Quantitative Video Ledger (`social-analytics-audit`):**
+  - Audit live retention curves (React Fiber second-by-second extraction), recalibrate the brand's independent `FB`, `IG`, and `TikTok` publish windows, and record the `WBRS Score (0–100)`:
+    ```bash
+    wvf analytics --platform all --save-windows
+    wvf ledger record --project .
+    wvf ledger compare
+    ```
 
 ---
 
 ## 🛠️ CLI Quick Reference
 
 ```bash
-wvf doctor                                    # Verify system tools, Chrome, and skills
+wvf doctor                                    # Verify system tools, Chrome, and 17 skills
 wvf init [--client <name>]                    # Initialize WVF directly in current directory
 wvf start [--port 4391]                       # Launch dashboard and live preview in Chrome
 wvf media [add <files...> | list]             # Manage and catalog project media assets
 wvf new "project-name" [--from <folder>]      # Scaffold project in a new folder
 wvf ingest                                    # Ingest research and media assets
+wvf audit-script <draft> [--allow-override]   # Validate 2-tier (6s/8s) listicle/story script
 wvf timeline                                  # Align vocal track and generate timing.js
+wvf audit-sweetspot [--project <dir>]         # Audit 4-6s visual pulse, Z-Depth, HairY & Story V2
 wvf cues                                      # Export window.CUES to audio/cues.json
+wvf audit-music <track> [--voice] [--master]  # CQT Major purity, Oct 3-4 & -14 LUFS mix audit
 wvf audio                                     # Procedural sound design & -14 LUFS mix
 wvf flowmusic [--status | --nav | --import]   # Connect & import FlowMusic project tracks
 wvf frames [seconds...]                       # Spot-check animation frames
 wvf render [--workers 4] [--fps 60]           # Full deterministic export
 wvf qa                                        # Technical compliance & Whisper audit
 wvf share [--send-wa]                         # Compress & send to WhatsApp
+wvf analytics [--save-windows]                # Multi-studio audit + per-brand FB/IG/TT deploy hours
+wvf ledger [compare | score | record]         # WBRS Score (0-100) accounting & history
 wvf fix-word <Lxx> <word> <phonetic_phrase>   # Surgical vocal patch
-wvf tool <name> [args...]                     # Run any pipeline tool (e.g. make_prompts, flow_submit)
+wvf tool <name> [args...]                     # Run any pipeline tool (e.g. flow_qc, make_prompts)
 ```
 
 ## Initialization, updates and repair

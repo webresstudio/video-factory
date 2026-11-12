@@ -24,10 +24,15 @@ Protocolo oficial para conectarse de forma **100 % automática** al Google Chrom
      ```bash
      wvf analytics --limit 6
      ```
-   - **Auditoría filtrada o para un cliente/modelo específico:**
+   - **Auditoría filtrada o para un cliente/modelo específico (y persistencia de ventanas óptimas por red):**
      ```bash
-     wvf analytics --model b2b_high_ticket --ig avalocorp --tiktok avalocorp --meta-asset 123456789
-     wvf analytics --platform meta --model ecommerce_b2c
+     wvf analytics --model b2b_high_ticket --ig avalocorp --tiktok avalocorp --meta-asset 123456789 --save-windows
+     wvf analytics --platform meta --model ecommerce_b2c --save-windows
+     ```
+   - **Registro contable en el Ledger histórico (`WBRS Score 0–100`):**
+     ```bash
+     wvf ledger record --project .
+     wvf ledger compare
      ```
    - **Inspección puntual de cualquier pestaña abierta en Chrome:**
      ```bash
@@ -81,9 +86,24 @@ Nunca evalúes todos los negocios como si fueran canales de entretenimiento masi
 
 ---
 
-## 5. Cruce Quirúrgico contra Guion y Hojas de Contacto
+## 5. Descubrimiento Empírico de Hora de Despliegue por Marca y por Red (`FB ≠ IG ≠ TikTok`)
 
-Después de correr `wvf analytics`:
-1. Lee `check/social_analytics.json` y ubica los segundos de abandono (`0:01`, `0:02` o el promedio en segundos).
-2. Abre `GUION.md` / `script.json` y la hoja de contactos en `check/` (`contacto_*.jpg`) del proyecto correspondiente.
-3. Señala exactamente **qué fotograma** provocó la fuga (ej. cortinilla verde en `0–2.8 s`, ausencia de titular en `1.2 s`, exceso de logos abstractos antes del segundo `14`, lista destripada completa en el copy, o pauta abierta que metió `>40 %` de público `18–24` en un producto B2B).
+**Prohibición absoluta:** Queda **estrictamente prohibido** quemar una hora fija (como `12:30 p.m.`) para todas las marcas o asumir que Facebook, Instagram y TikTok comparten la misma ventana óptima dentro de una misma marca.
+
+`wvf analytics` ejecuta `discover_brand_publish_windows(...)` calculando **3 ventanas independientes** por cada marca:
+1. **`tiktok` (`optimal_publish_windows.tiktok`):** Extrae la ventana pico real de audiencia activa en `tiktokstudio/analytics` (7 días) y calcula un pre-despliegue de `30–45 min` antes del pico para completar la indexación semántica antes de la cresta de tráfico; si aún no hay ventana de audiencia, pondera por `views × average_watch_seconds` de las publicaciones recientes de TikTok de esa cuenta.
+2. **`instagram` (`optimal_publish_windows.instagram`):** Filtra en Meta Business Suite las filas nativas de Instagram (`platform_channel == "instagram"` o `crossposted`) de ese `meta_asset_id` / `instagram_handle` y pondera cada hora histórica de publicación por `alcance × seg_promedio_reproducción × (1 + guardados + compartidos)`.
+3. **`facebook` (`optimal_publish_windows.facebook`):** Filtra de forma independiente las publicaciones de Facebook Reels/Video (`platform_channel == "facebook"` o rendimiento específico en FB) de esa página comercial y calcula su propia ventana óptima (`deploy_window` y `peak_hour_24`).
+
+Al pasar `--save-windows`, `wvf analytics` persiste automáticamente `social.optimal_publish_windows` dentro del `project_config.json` de ese cliente para que `COPYS-REDES.md` y el calendario de Stories usen **siempre la hora empírica propia de cada red y cada marca**.
+
+---
+
+## 6. Extracción de Curva de Retención Segundo a Segundo (React Fiber) y Cruce Quirúrgico
+
+1. **Curva segundo a segundo en TikTok Studio:** `wvf analytics` inspecciona el árbol interno `_reactFiber` / `__reactProps` del gráfico de retención de TikTok Studio (`retention_curve_points`) además del texto visible, capturando caídas exactas incluso cuando el canvas/SVG no expone etiquetas DOM.
+2. **Cruce contra Guion y Hojas de Contacto:**
+   - Lee `check/social_analytics.json` y ubica los segundos exactos de abandono (`0:01`, `0:02`, valles de `retention_curve_points` o bloques visuales `> 6.2 s` detectados por `wvf audit-sweetspot`).
+   - Abre `GUION.md` / `script.json` y la hoja de contactos en `check/` (`contacto_*.jpg`) del proyecto correspondiente.
+   - Señala exactamente **qué fotograma o estado estático** provocó la fuga (ej. cortinilla verde en `0–2.8 s`, bloque estadístico extendido `> 6.2 s` sin cambio de plano, flash blanco `#flash`, ausencia de titular en `1.2 s`, lista destripada completa en el copy o desalineación demográfica).
+3. **Contabilidad histórica (`wvf ledger`):** Registra cada video auditado con `wvf ledger record --project <ruta>` para calcular su **`WBRS Score (0–100)`** (`35 pts` Gancho + `30 pts` Cuerpo + `25 pts` Intención + `10 pts` Embudo) y compararlo objetivamente contra entregas anteriores en `video-factory/research/video_ledger.jsonl`.

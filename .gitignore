@@ -16,8 +16,12 @@ __pycache__/
 *.mov
 !kit/templates/default/wbrs-emblem.svg
 
-# Scratch & Temporary outputs
+# Scratch, local ledgers & compiled local binaries
 scratch/
 render_segments/
 check/
 frames/
+kit/tools/segment_person
+flow-mcp/
+flow-community-mcp/
+research/

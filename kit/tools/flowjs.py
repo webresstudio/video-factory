@@ -20,9 +20,15 @@ def run_js(code: str) -> str:
 set jsCode to (read POSIX file "{path}" as «class utf8»)
 tell application "Google Chrome"
     repeat with w in windows
-        repeat with t in tabs of w
+        -- De la última pestaña a la primera: la más reciente suele ser la activa.
+        repeat with t in (reverse of (tabs of w as list))
             if URL of t contains {json.dumps(match, ensure_ascii=False)} then
-                return execute t javascript jsCode
+                -- Si hay una pestaña duplicada congelada (Chrome la suspende), probar la siguiente.
+                try
+                    with timeout of 12 seconds
+                        return execute t javascript jsCode
+                    end timeout
+                end try
             end if
         end repeat
     end repeat

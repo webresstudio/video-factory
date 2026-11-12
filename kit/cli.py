@@ -85,6 +85,7 @@ def cmd_doctor(args):
 
     # 5. Skills
     req_skills = [
+        "webres-video-factory",
         "internet-video-2026",
         "motion-kinetic-typography",
         "dynamic-text-animations",
@@ -99,6 +100,8 @@ def cmd_doctor(args):
         "shotcraft-ui-recipes",
         "lottie-attention-choreography",
         "social-analytics-audit",
+        "wbrs-retention-sweetspot",
+        "wbrs-psychoacoustic-mix",
     ]
     all_skills_ok = True
     for s in req_skills:
@@ -489,15 +492,34 @@ def main():
     subparsers.add_parser("copy", help="Guía para generación de copys multicanal")
 
     # audit-script
-    p_audit = subparsers.add_parser("audit-script", help="Valida guion viral de lista/historia (ES/EN)")
+    p_audit = subparsers.add_parser("audit-script", help="Valida guion viral de lista/historia con cadencia flexible 6s/8s (ES/EN)")
     p_audit.add_argument("draft", help="Ruta al archivo JSON o GUION.md del guion")
     p_audit.add_argument("--lang", choices=["es", "en"], default="es", help="Idioma del guion (es o en)")
+    p_audit.add_argument("--allow-override", action="store_true", help="Convierte límites suaves de palabras en advertencia sin bloquear")
     p_audit.add_argument("--output", help="Ruta opcional para reporte JSON")
+
+    # audit-sweetspot
+    p_sweet = subparsers.add_parser("audit-sweetspot", help="Audita pulso visual 4-6s, Z-Depth, nativeHairY, Story V2 y emite engineering_manifest.json")
+    p_sweet.add_argument("--project", default="", help="Ruta del proyecto WVF (default: actual)")
+    p_sweet.add_argument("--allow-long", action="store_true", help="No advertir si la duración supera 52s")
+    p_sweet.add_argument("--json", action="store_true", help="Imprimir JSON completo en stdout")
+
+    # audit-music
+    p_music = subparsers.add_parser("audit-music", help="Audita pureza diatónica CQT (>=80%% Mayor), octavas 3-4, groove y mezcla -14 LUFS")
+    p_music.add_argument("music", help="Archivo de música candidata o stem (.m4a, .mp3, .wav)")
+    p_music.add_argument("--voice", default="", help="Stem de voz (audio/voice.wav)")
+    p_music.add_argument("--master", default="", help="Mezcla final (audio/master.wav)")
+    p_music.add_argument("--target-dur", type=float, default=48.0, help="Duración objetivo sin empalmes (default: 48s)")
+    p_music.add_argument("--out", default="", help="Ruta de salida JSON")
+
+    # ledger
+    p_ledger = subparsers.add_parser("ledger", help="Gestiona el Ledger histórico contable (WBRS Score 0-100: record, score, compare)")
+    p_ledger.add_argument("ledger_action", nargs="?", default="compare", choices=["record", "score", "compare"], help="Acción: record, score, compare")
 
     # analytics
     p_analytics = subparsers.add_parser(
         "analytics",
-        help="Audita métricas en TikTok Studio, Meta Business Suite e Instagram por modelo de negocio",
+        help="Audita métricas en TikTok Studio, Meta Business Suite e Instagram y descubre horas óptimas por red y marca",
     )
     p_analytics.add_argument("--platform", choices=["all", "tiktok", "meta", "instagram"], default="all", help="Plataforma a consultar")
     p_analytics.add_argument("--limit", type=int, default=5, help="Videos recientes a inspeccionar")
@@ -506,6 +528,7 @@ def main():
     p_analytics.add_argument("--tiktok", default="", help="Handle de TikTok del cliente")
     p_analytics.add_argument("--meta-asset", default="", help="asset_id en Meta Business Suite")
     p_analytics.add_argument("--meta-business", default="", help="business_id en Meta Business Suite")
+    p_analytics.add_argument("--save-windows", action="store_true", help="Guarda las horas óptimas empíricas (FB/IG/TikTok) en project_config.json")
     p_analytics.add_argument("--out", default="", help="Ruta de salida para el JSON de analítica")
 
     # tool
@@ -569,9 +592,31 @@ def main():
     elif args.command == "audit-script":
         auditor = os.path.join(SKILLS_DIR, "viral-listicle-story", "scripts", "audit_listicle.py")
         cmd = [sys.executable, auditor, args.draft, "--lang", args.lang]
+        if args.allow_override:
+            cmd.append("--allow-override")
         if args.output:
             cmd += ["--output", args.output]
-        sys.exit(subprocess.call(cmd))
+        sys.exit(subprocess.call(cmd + unknown))
+    elif args.command == "audit-sweetspot":
+        extra = []
+        if args.project:
+            extra += ["--project", args.project]
+        if args.allow_long:
+            extra.append("--allow-long")
+        if args.json:
+            extra.append("--json")
+        sys.exit(cmd_exec_tool("audit_sweetspot.py", extra + unknown))
+    elif args.command == "audit-music":
+        extra = [args.music, "--target-dur", str(args.target_dur)]
+        if args.voice:
+            extra += ["--voice", args.voice]
+        if args.master:
+            extra += ["--master", args.master]
+        if args.out:
+            extra += ["--out", args.out]
+        sys.exit(cmd_exec_tool("audit_music_track.py", extra + unknown))
+    elif args.command == "ledger":
+        sys.exit(cmd_exec_tool("video_ledger.py", [args.ledger_action] + unknown))
     elif args.command == "analytics":
         extra = ["--platform", args.platform, "--limit", str(args.limit)]
         if args.model:
@@ -584,6 +629,8 @@ def main():
             extra += ["--meta-asset", args.meta_asset]
         if args.meta_business:
             extra += ["--meta-business", args.meta_business]
+        if args.save_windows:
+            extra.append("--save-windows")
         if args.out:
             extra += ["--out", args.out]
         sys.exit(cmd_exec_tool("social_analytics.py", extra + unknown))

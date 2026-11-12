@@ -10,6 +10,7 @@ manual remote-debugging setup, extracts video performance metrics from:
 Evaluates performance against industry-specific benchmarks configured per client/project.
 """
 import argparse
+import datetime as dt
 import json
 import os
 import re
@@ -193,11 +194,67 @@ def build_meta_insights_url(social_configuration: dict) -> str:
     return f"{base_url}?{urlencode(query_parameters)}"
 
 
+def parse_hour_float(raw_value: str) -> float | None:
+    """Parse local publish/activity hour (0.0..23.99) from Meta, TikTok, or ISO-8601 strings."""
+    if not raw_value:
+        return None
+    text = raw_value.strip()
+    # ISO-8601 datetime e.g. 2026-11-10T18:35:00.000Z
+    iso_match = re.match(r"^\d{4}-\d{2}-\d{2}T(\d{2}):(\d{2})", text)
+    if iso_match:
+        try:
+            normalized_iso = text.replace("Z", "+00:00")
+            parsed_dt = dt.datetime.fromisoformat(normalized_iso)
+            if parsed_dt.tzinfo is not None:
+                local_tz = dt.datetime.now().astimezone().tzinfo
+                parsed_dt = parsed_dt.astimezone(local_tz)
+            return round(parsed_dt.hour + parsed_dt.minute / 60.0, 2)
+        except ValueError:
+            pass
+
+    # 12-hour format e.g. "7:00am", "12:35pm", "1pm y las 2pm", "8 p. m."
+    ampm_match = re.search(
+        r"\b(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*(a\.?\s*m\.?|p\.?\s*m\.?)\b",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if ampm_match:
+        hour = int(ampm_match.group(1))
+        minute = int(ampm_match.group(2) or 0)
+        meridiem = re.sub(r"[\s.]", "", ampm_match.group(3)).lower()
+        if meridiem == "pm" and hour != 12:
+            hour += 12
+        elif meridiem == "am" and hour == 12:
+            hour = 0
+        return round(hour + minute / 60.0, 2)
+
+    # 24-hour format e.g. "14:30" or "08:15" (avoiding mm:ss video durations like 0:02)
+    h24_match = re.search(r"(?:,\s*|\s+)([01]?\d|2[0-3]):([0-5]\d)\b", " " + text)
+    if h24_match and "minuto" not in text.lower():
+        return round(int(h24_match.group(1)) + int(h24_match.group(2)) / 60.0, 2)
+    return None
+
+
+def format_hour_12h(hour_float: float) -> str:
+    total_minutes = int(round((hour_float % 24.0) * 60.0)) % (24 * 60)
+    hour24, minute = divmod(total_minutes, 60)
+    meridiem = "a. m." if hour24 < 12 else "p. m."
+    hour12 = hour24 % 12 or 12
+    return f"{hour12}:{minute:02d} {meridiem}"
+
+
+def format_deploy_window_from_peak(peak_hour: float, lead_minutes: int = 30, span_minutes: int = 30) -> str:
+    start_h = (peak_hour - lead_minutes / 60.0) % 24.0
+    end_h = (start_h + span_minutes / 60.0) % 24.0
+    return f"{format_hour_12h(start_h)} – {format_hour_12h(end_h)}"
+
+
 def parse_tiktok_video_analytics(
     video_id: str,
     summary_text: str,
     audience_text: str = "",
     caption_hint: str = "",
+    retention_curve_pct: list[float] | None = None,
 ) -> dict:
     lines = [line.strip() for line in (summary_text or "").splitlines() if line.strip()]
     published_date = ""
@@ -267,9 +324,10 @@ def parse_tiktok_video_analytics(
                 countries[audience_lines[cursor]] = parse_percentage_value(audience_lines[cursor + 1])
                 cursor += 2
 
-    return {
+    parsed_video = {
         "video_id": video_id,
         "published_date": published_date,
+        "published_hour": parse_hour_float(published_date),
         "caption": caption_text[:180],
         "views": views_value,
         "likes": top_counters["likes"],
@@ -284,6 +342,9 @@ def parse_tiktok_video_analytics(
         "age_brackets": age_brackets,
         "countries": countries,
     }
+    if retention_curve_pct:
+        parsed_video["retention_curve_pct"] = [round(float(x), 1) for x in retention_curve_pct]
+    return parsed_video
 
 
 def parse_tiktok_account_overview(overview_text: str, viewers_text: str = "") -> dict:
@@ -299,15 +360,18 @@ def parse_tiktok_account_overview(overview_text: str, viewers_text: str = "") ->
         viewers_text or "",
         flags=re.IGNORECASE,
     )
+    peak_window_str = peak_match.group(1).strip() if peak_match else ""
     return {
         "account_search_traffic_percent": search_percent,
-        "peak_activity_window": peak_match.group(1).strip() if peak_match else "",
+        "peak_activity_window": peak_window_str,
+        "peak_activity_start_hour": parse_hour_float(peak_window_str),
     }
 
 
-def parse_meta_business_suite_rows(grid_rows: list[list[str]]) -> list[dict]:
+def parse_meta_business_suite_rows(grid_rows: list[list[str]], instagram_handle: str = "") -> list[dict]:
     parsed_items = []
     seen_signatures = set()
+    ig_norm = (instagram_handle or "").strip().lstrip("@").lower()
     for row_cells in grid_rows:
         if not row_cells or len(row_cells) < 15:
             continue
@@ -322,14 +386,29 @@ def parse_meta_business_suite_rows(grid_rows: list[list[str]]) -> list[dict]:
         is_story = " Story " in f" {first_cell} "
         post_type = "story" if is_story else ("reel" if " Reel " in f" {first_cell} " else "post")
         is_crossposted = "Crossposted" in first_cell
+
+        tail_match = re.search(r"\s(?:Reel|Story)\s+(.*)$", first_cell)
+        account_tail = re.sub(r"\bBoost\b.*$", "", tail_match.group(1), flags=re.IGNORECASE).strip() if tail_match else ""
+        if is_crossposted:
+            platform_channel = "crossposted"
+        elif ig_norm and ig_norm in account_tail.lower():
+            platform_channel = "instagram"
+        elif account_tail and re.fullmatch(r"@?[a-z0-9._]{3,32}", account_tail):
+            platform_channel = "instagram"
+        else:
+            platform_channel = "facebook"
+
         clean_title = re.sub(r"\s*(Reel|Story)\s+(Crossposted\s+)?.*$", "", first_cell).strip()
+        date_str = row_cells[1].strip()
 
         parsed_items.append(
             {
                 "title": clean_title[:180],
                 "post_type": post_type,
+                "platform_channel": platform_channel,
                 "is_crossposted": is_crossposted,
-                "date_published": row_cells[1].strip(),
+                "date_published": date_str,
+                "published_hour": parse_hour_float(date_str),
                 "views": parse_compact_number(row_cells[2]),
                 "reach": parse_compact_number(row_cells[3]),
                 "viewers": parse_compact_number(row_cells[4]),
@@ -517,6 +596,214 @@ def evaluate_social_performance(
     }
 
 
+def _best_publish_hour_from_posts(posts: list[dict], score_fn) -> tuple[float | None, int]:
+    """Group historical posts into 2-hour buckets and return (weighted_best_hour, sample_count)."""
+    buckets: dict[int, list[tuple[float, float]]] = {}
+    valid_count = 0
+    for item in posts:
+        h = item.get("published_hour")
+        if h is None:
+            continue
+        weight = max(float(score_fn(item)), 0.01)
+        bucket_key = int(h) // 2
+        buckets.setdefault(bucket_key, []).append((float(h), weight))
+        valid_count += 1
+    if not buckets:
+        return None, 0
+    best_bucket = max(
+        buckets.items(),
+        key=lambda kv: sum(w for _, w in kv[1]) / (len(kv[1]) ** 0.35),
+    )[1]
+    total_w = sum(w for _, w in best_bucket)
+    weighted_hour = sum(h * w for h, w in best_bucket) / max(total_w, 1e-9)
+    return round(weighted_hour % 24.0, 2), valid_count
+
+
+def discover_brand_publish_windows(
+    social_configuration: dict,
+    tiktok_videos: list[dict] | None = None,
+    meta_items: list[dict] | None = None,
+    instagram_reels: list[dict] | None = None,
+    tiktok_overview: dict | None = None,
+    audience_activity: dict | None = None,
+) -> dict:
+    """Calculate SEPARATE optimal publish windows for Facebook, Instagram, and TikTok per brand.
+
+    Never hardcodes a universal hour across brands or across networks: combines each network's
+    audience active-hour peak (when available) with that brand's empirical post velocity per hour.
+    """
+    tiktok_videos = tiktok_videos or []
+    meta_items = meta_items or []
+    instagram_reels = instagram_reels or []
+    tiktok_overview = tiktok_overview or {}
+    audience_activity = audience_activity or {}
+    brand_name = social_configuration.get("client_name", "Marca")
+
+    def resolve_network_window(
+        network_label: str,
+        audience_peak_hour: float | None,
+        hist_best_hour: float | None,
+        hist_samples: int,
+        low_conf_fallback: bool = False,
+    ) -> dict:
+        if audience_peak_hour is not None and hist_best_hour is not None:
+            # Circular blend on 24h clock: 55% audience active peak, 45% best empirical post hour (+0.5h peak offset)
+            import math
+            a1 = audience_peak_hour * 2.0 * math.pi / 24.0
+            a2 = ((hist_best_hour + 0.5) % 24.0) * 2.0 * math.pi / 24.0
+            sin_m = 0.55 * math.sin(a1) + 0.45 * math.sin(a2)
+            cos_m = 0.55 * math.cos(a1) + 0.45 * math.cos(a2)
+            blended_peak = round((math.atan2(sin_m, cos_m) * 24.0 / (2.0 * math.pi)) % 24.0, 2)
+            return {
+                "recommended_deploy_window": format_deploy_window_from_peak(blended_peak, lead_minutes=30, span_minutes=30),
+                "empirical_peak_hour": blended_peak,
+                "source": "hybrid_audience_and_history",
+                "sample_size": hist_samples,
+                "rationale": (
+                    f"{brand_name} en {network_label}: cruza pico activo de espectadores ({format_hour_12h(audience_peak_hour)}) "
+                    f"con mejor velocidad histórica ({hist_samples} publicaciones, mejor salida ~{format_hour_12h(hist_best_hour)})."
+                ),
+            }
+        if audience_peak_hour is not None:
+            return {
+                "recommended_deploy_window": format_deploy_window_from_peak(audience_peak_hour, lead_minutes=30, span_minutes=30),
+                "empirical_peak_hour": round(audience_peak_hour, 2),
+                "source": "audience_activity_peak",
+                "sample_size": hist_samples,
+                "rationale": (
+                    f"{brand_name} en {network_label}: publicar 30 min antes del pico activo de su audiencia "
+                    f"({format_hour_12h(audience_peak_hour)})."
+                ),
+            }
+        if hist_best_hour is not None:
+            src = "crosspost_fallback_low_confidence" if low_conf_fallback else "historical_post_velocity"
+            start_str = format_hour_12h((hist_best_hour - 0.25) % 24.0)
+            end_str = format_hour_12h((hist_best_hour + 0.25) % 24.0)
+            extra_note = (
+                " (calculado sobre crossposts; publica nativo en Facebook para aislar su curva propia)"
+                if low_conf_fallback
+                else ""
+            )
+            return {
+                "recommended_deploy_window": f"{start_str} – {end_str}",
+                "empirical_peak_hour": round((hist_best_hour + 0.5) % 24.0, 2),
+                "source": src,
+                "sample_size": hist_samples,
+                "rationale": (
+                    f"{brand_name} en {network_label}: franja con mayor retención×alcance empírico en {hist_samples} "
+                    f"publicaciones de esta cuenta (~{format_hour_12h(hist_best_hour)}){extra_note}."
+                ),
+            }
+        return {
+            "recommended_deploy_window": "Pendiente de auditar historial propio de esta marca",
+            "empirical_peak_hour": None,
+            "source": "insufficient_data",
+            "sample_size": 0,
+            "rationale": (
+                f"Sin horas activas ni publicaciones con hora en {network_label} para {brand_name}. "
+                f"Ejecuta `wvf analytics --platform all` con la sesión de esta marca antes de programar."
+            ),
+        }
+
+    # 1. TikTok window (specific to this brand's TikTok Studio)
+    tt_aud_peak = audience_activity.get("tiktok_peak_hour")
+    if tt_aud_peak is None:
+        tt_aud_peak = tiktok_overview.get("peak_activity_start_hour")
+        if tt_aud_peak is None and tiktok_overview.get("peak_activity_window"):
+            tt_aud_peak = parse_hour_float(tiktok_overview["peak_activity_window"])
+    tt_hist_hour, tt_n = _best_publish_hour_from_posts(
+        tiktok_videos,
+        lambda v: max(v.get("views", 1), 1)
+        * max(v.get("average_watch_seconds", 2.0), 1.0)
+        * (1.0 + 0.30 * v.get("saves", 0) + 0.35 * v.get("shares", 0)),
+    )
+    tt_win = resolve_network_window("TikTok", tt_aud_peak, tt_hist_hour, tt_n)
+
+    # 2. Instagram window (strictly native IG reels/posts from Meta + IG Insights, excluding crossposts)
+    ig_aud_peak = audience_activity.get("instagram_peak_hour")
+    if isinstance(ig_aud_peak, str):
+        ig_aud_peak = parse_hour_float(ig_aud_peak)
+    ig_candidates = [
+        m for m in meta_items if m.get("post_type") in ("reel", "post") and m.get("platform_channel") == "instagram"
+    ]
+    for reel in instagram_reels:
+        h_ig = parse_hour_float(reel.get("published_at", ""))
+        if h_ig is not None:
+            ig_candidates.append(
+                {
+                    "published_hour": h_ig,
+                    "views": reel.get("views", 0),
+                    "reach": reel.get("unique_viewers", 0),
+                    "average_play_seconds": 8.0,
+                    "saves": reel.get("saves", 0),
+                    "shares": reel.get("shares", 0),
+                }
+            )
+    ig_hist_hour, ig_n = _best_publish_hour_from_posts(
+        ig_candidates,
+        lambda m: max(m.get("reach") or m.get("views", 1), 1)
+        * max(m.get("average_play_seconds", 4.0), 2.0)
+        * (1.0 + 0.35 * m.get("saves", 0) + 0.40 * m.get("shares", 0)),
+    )
+    ig_win = resolve_network_window("Instagram", ig_aud_peak, ig_hist_hour, ig_n)
+
+    # 3. Facebook window (native Facebook Page reels/videos in Meta Business Suite)
+    fb_aud_peak = audience_activity.get("facebook_peak_hour")
+    if isinstance(fb_aud_peak, str):
+        fb_aud_peak = parse_hour_float(fb_aud_peak)
+    fb_native = [
+        m for m in meta_items if m.get("post_type") in ("reel", "post") and m.get("platform_channel") == "facebook"
+    ]
+    fb_used_fallback = False
+    if not fb_native:
+        fb_native = [
+            m for m in meta_items if m.get("post_type") in ("reel", "post") and m.get("is_crossposted")
+        ]
+        fb_used_fallback = bool(fb_native)
+    fb_hist_hour, fb_n = _best_publish_hour_from_posts(
+        fb_native,
+        lambda m: max(m.get("views", 1), 1)
+        * max(m.get("average_play_seconds", 2.0), 1.0)
+        * (1.0 + 0.25 * m.get("interactions", 0) / max(m.get("views", 1), 1)),
+    )
+    fb_win = resolve_network_window("Facebook", fb_aud_peak, fb_hist_hour, fb_n, low_conf_fallback=fb_used_fallback)
+
+    return {
+        "brand": brand_name,
+        "tiktok": tt_win,
+        "instagram": ig_win,
+        "facebook": fb_win,
+    }
+
+
+EXTRACT_TIKTOK_RETENTION_FIBER_JS = """
+(() => {
+  try {
+    const nodes = Array.from(document.querySelectorAll('svg, div, canvas'));
+    for (const el of nodes) {
+      const fiberKey = Object.keys(el).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactProps$'));
+      if (!fiberKey) continue;
+      let cur = el[fiberKey];
+      for (let depth = 0; cur && depth < 14; depth++, cur = cur.return) {
+        const p = cur.memoizedProps || cur.pendingProps || {};
+        const candidates = [p.data, p.retentionData, p.series?.[0]?.data, p.option?.series?.[0]?.data];
+        for (const arr of candidates) {
+          if (Array.isArray(arr) && arr.length >= 8) {
+            const nums = arr.map(it => typeof it === 'number' ? it : (it?.y ?? it?.value ?? it?.rate ?? null))
+                            .filter(v => typeof v === 'number' && !Number.isNaN(v));
+            if (nums.length >= 8 && nums[0] >= 80 && nums[0] <= 105) {
+              return JSON.stringify(nums);
+            }
+          }
+        }
+      }
+    }
+  } catch (e) {}
+  return '[]';
+})()
+"""
+
+
 def collect_tiktok_studio_live(social_configuration: dict, limit: int) -> dict:
     chromejs.navigate_tab("https://www.tiktok.com/tiktokstudio/content", url_match="tiktok.com")
     time.sleep(5.0)
@@ -568,6 +855,11 @@ def collect_tiktok_studio_live(social_configuration: dict, limit: int) -> dict:
             "(() => { window.scrollTo(0, 1200); return document.body.innerText; })()",
             url_match="tiktok.com",
         )
+        raw_curve = chromejs.execute_javascript(EXTRACT_TIKTOK_RETENTION_FIBER_JS, url_match="tiktok.com")
+        try:
+            retention_curve = json.loads(raw_curve) if raw_curve else []
+        except ValueError:
+            retention_curve = []
         chromejs.execute_javascript(
             """(() => {
               const tab = Array.from(document.querySelectorAll('div, span, button, a'))
@@ -585,6 +877,7 @@ def collect_tiktok_studio_live(social_configuration: dict, limit: int) -> dict:
                 summary_text=summary_text,
                 audience_text=audience_text,
                 caption_hint=caption_preview,
+                retention_curve_pct=retention_curve,
             )
         )
 
@@ -640,7 +933,10 @@ def collect_meta_studio_live(social_configuration: dict) -> dict:
 
     return {
         "resolved_url": resolved_url,
-        "items": parse_meta_business_suite_rows(all_rows),
+        "items": parse_meta_business_suite_rows(
+            all_rows,
+            instagram_handle=social_configuration.get("instagram_handle", ""),
+        ),
     }
 
 
@@ -717,6 +1013,14 @@ def print_console_report(report: dict) -> None:
     min_sec, max_sec = evaluation["recommended_duration_seconds"]
     print(f"   Duración recomendada: {min_sec}s–{max_sec}s")
 
+    windows = report.get("optimal_publish_windows", {})
+    if windows:
+        print(f"\n🕒 Ventanas Óptimas de Despliegue para {config['client_name']} (Independientes por Red):")
+        for net_key, net_label in (("tiktok", "TikTok"), ("instagram", "Instagram"), ("facebook", "Facebook")):
+            w_info = windows.get(net_key, {})
+            if w_info:
+                print(f"   • {net_label:<10}: {w_info.get('recommended_deploy_window')}  [{w_info.get('source')}]")
+
     tiktok_section = report.get("tiktok_studio", {})
     if tiktok_section.get("account_mismatch_warning"):
         print(f"   ⚠️ {tiktok_section['account_mismatch_warning']}")
@@ -739,7 +1043,8 @@ def print_console_report(report: dict) -> None:
     if meta_items:
         print(f"\n📈 Meta Business Suite Reels — {len(meta_items)} Reels:")
         for item in meta_items:
-            mode_tag = "Crosspost" if item["is_crossposted"] else "IG Nativo"
+            ch = item.get("platform_channel", "instagram")
+            mode_tag = "Crosspost" if item["is_crossposted"] else ("FB Nativo" if ch == "facebook" else "IG Nativo")
             print(
                 f"   • {item['date_published']} ({mode_tag}): {item['views']} vistas | "
                 f"prom. {item['average_play_seconds']}s | guardados {item['saves']} | {item['title'][:50]}"
@@ -784,6 +1089,11 @@ def build_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--tiktok", default="", help="Handle de TikTok del cliente (ej: williamromerovela)")
     parser.add_argument("--meta-asset", default="", help="asset_id de la cuenta en Meta Business Suite")
     parser.add_argument("--meta-business", default="", help="business_id del portafolio en Meta Business Suite")
+    parser.add_argument(
+        "--save-windows",
+        action="store_true",
+        help="Persistir las ventanas óptimas descubiertas (FB/IG/TikTok) en project_config.json",
+    )
     parser.add_argument("--out", default="", help="Ruta de salida para el reporte JSON (default: check/social_analytics.json)")
     return parser
 
@@ -822,12 +1132,34 @@ def main(argv=None) -> int:
         instagram_reels=instagram_data.get("reels", []),
         tiktok_overview=tiktok_data.get("overview", {}),
     )
+    optimal_windows = discover_brand_publish_windows(
+        social_configuration=configuration,
+        tiktok_videos=tiktok_data.get("videos", []),
+        meta_items=meta_data.get("items", []),
+        instagram_reels=instagram_data.get("reels", []),
+        tiktok_overview=tiktok_data.get("overview", {}),
+    )
+
+    if parsed_args.save_windows:
+        cfg_path = os.path.join(project_root, "project_config.json")
+        if os.path.isfile(cfg_path):
+            try:
+                cfg_obj = json.load(open(cfg_path, encoding="utf-8"))
+                cfg_obj.setdefault("social", {})["optimal_publish_windows"] = {
+                    net: optimal_windows[net]["recommended_deploy_window"]
+                    for net in ("tiktok", "instagram", "facebook")
+                }
+                with open(cfg_path, "w", encoding="utf-8") as cfh:
+                    json.dump(cfg_obj, cfh, ensure_ascii=False, indent=2)
+            except (OSError, ValueError):
+                pass
 
     output_path = parsed_args.out or os.path.join(project_root, "check", "social_analytics.json")
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
 
     full_report = {
         "configuration": configuration,
+        "optimal_publish_windows": optimal_windows,
         "tiktok_studio": tiktok_data,
         "meta_business_suite": meta_data,
         "instagram": instagram_data,

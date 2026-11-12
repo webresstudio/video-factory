@@ -81,7 +81,7 @@ for skill_path in "$DIR/skills/"*; do
     done
   fi
 done
-echo "✓ 15 Skills de diseño, retención, analítica y animación al unísono registradas globalmente."
+echo "✓ 17 Skills de diseño, retención, psicoacústica, analítica y animación al unísono registradas globalmente."
 
 # 7. Crear enlace simbólico de wvf en PATH
 echo "⚡ Configurando comando global 'wvf'..."

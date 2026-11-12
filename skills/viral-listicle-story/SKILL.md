@@ -1,123 +1,68 @@
 ---
 name: viral-listicle-story
 description: >-
-  Metodología y validador automático (ES/EN) para guiones virales de listas en video vertical
-  («5 cosas que no sabías sobre…», «6 comandos de…», «N herramientas…», «N errores…», «Top N…»).
-  Transforma listas planas en una sola historia continua de causa-efecto con dolor previo (The Stake),
-  gancho triple sin duplicación, alto burstiness humano, re-hook espacial a mitad y doble cierre
-  (DM Sends + tarjeta mapa coleccionable para Guardados). Úsala SIEMPRE que el usuario pida un video
-  enumerado o de «N cosas / herramientas / comandos / secretos / errores».
+  Metodología y validador automático v2 (ES/EN) para guiones virales de listas y casos
+  causales en video vertical («5 cosas que no sabías sobre…», «6 comandos de…», «3 pasos
+  para…», «N herramientas / errores»). Transforma listas planas en una historia continua
+  de causa-efecto con apertura directa sin condicionales (<1.2s), bloques estadísticos
+  comprimidos sin puentes vacíos (<=6s), cadencia abordable en 2 niveles (Pulso Ágil 6s:
+  10-18 pal. / Pulso Extendido 8s: 19-24 pal. con sub-corte visual), re-hook por
+  contradicción real a mitad y cierre disociado (clic visual en Guardar guía + 1 pregunta
+  hablada, cero fuga a agencias terceras).
 ---
 
-# Viral Listicle-as-Story Runbook (ES / EN)
+# Viral Listicle-as-Story Runbook v2 (ES / EN)
 
-Sistema de escritura y validación para convertir cualquier video tipo **«N cosas que no sabías sobre…» / «N comandos / herramientas / errores»** en una pieza de alta retención, guardados y compartidos por DM en Reels, TikTok y YouTube Shorts, cumpliendo al 100 % las reglas de [AGENTS.md](../../../AGENTS.md), [CDF](../../../manual_maestro_formato_creativo_completo.md), [DEM](../../../manual_documental_en_movimiento.md) y el catálogo oficial de TikTok Promote.
-
-> **Fuentes integradas:** `coreyhaines31/marketingskills` (`hook-system.md`), `Jakeschincariol/instagram-agent-skill` (`ig-reel` + `ig-human`, MIT), `vyralcontent/content-skills` (`sends-playbook.md` + `tiktok-script-structure.md`), arquitectura narrativa *Pero / Entonces* (Jenny Hoyos / Kallaway) y hallazgos empíricos de [catalogo_tiktok_promote_oficial.md](../../../catalogo_tiktok_promote_oficial.md) (`#031`, `#033`, `#040`, `#072`, `#079`, `#113`).
+Sistema de escritura y validación para convertir cualquier video tipo **«N cosas que no sabías sobre…» / «N comandos / pasos / herramientas / errores»** en una pieza de alta retención, guardados y comentarios calificados en Reels, TikTok, Facebook y YouTube Shorts, cumpliendo al 100 % las reglas de [AGENTS.md](../../../AGENTS.md), [CDF](../../../manual_maestro_formato_creativo_completo.md), [DEM](../../../manual_documental_en_movimiento.md) y el [Manual de Ingeniería de Retención y Punto Dulce](../../../manual_ingenieria_retencion_punto_dulce.md).
 
 ---
 
-## Las 7 Leyes Obligatorias del Formato «Lista como Historia»
+## Las 8 Leyes Obligatorias del Formato «Lista como Historia» (Calibración v2)
 
 ### 1. Prohibido el catálogo plano («Uno… Dos… Tres…»)
-* **Nunca** redactes el texto hablado como un glosario numerado (*«Uno: X. Dos: Y. Tres: Z.»*). La numeración va **únicamente en el texto en pantalla** (`1 · ...`, `2 · ...`) para orientar el ojo.
-* En la voz, los `N` puntos deben encadenarse como **una sola historia continua de causa y efecto (`Pero → Entonces`)**: resolver los tropiezos reales de una misma persona o proyecto de principio a fin.
-* **Nivel de comprensión general:** cada punto debe entenderlo tanto un experto como alguien ajeno al gremio en una sola escucha. Cero siglas o jerga técnica sin traducir a una acción física cotidiana.
+* **Nunca** redactes el texto hablado como un glosario numerado (*«Uno: X. Dos: Y. Tres: Z.»*). La numeración va **únicamente en el texto en pantalla** (`01 / 02 / 03` o `1 · ...`) para orientar el ojo.
+* En la voz, los `N` puntos se encadenan como **una sola historia continua de causa y efecto (`Pero → Entonces`)**.
 
-### 2. Gancho Triple sin Duplicación (`0–3 s`)
-Los tres canales de apertura se complementan; **jamás dicen lo mismo**:
-1. **Primera oración hablada (`≤ 8 palabras` / `≤ 2.5 s`):** Imperativo o reto directo al espectador con nombre propio, cifra o contraste desde las primeras 4 palabras. Cero saludos ni preámbulos (*«Hoy te traigo…»*).
-2. **Texto en pantalla (`≤ 6 palabras`):** Abre el ángulo amplio para quien mira sin sonido o fuera del nicho (ej. voz reta a usuarios de `Claude Code`, mientras la pantalla promete `CREA APPS SIN SABER CÓDIGO`). Solapamiento léxico con la voz `< 40 %`.
-3. **Acción visual (`0–3 s`):** Gesto físico inmediato de William grande (`PC`, `0–1.8 s`) + corte visual antes del segundo `2.0` (`PD` o `GRAF`).
+### 2. Apertura Directa sin Condicionales (`< 1.2 s`) + Gancho Triple sin Duplicación (`0–3 s`)
+* **Prohibidos los condicionales suaves en las primeras 4 palabras de `L01`** (*«Puede que ChatGPT…»*, *«Tal vez tu web…»*, *«¿Sabías que…?»*): retrasan el sustantivo de amenaza/recompensa más allá de `2.0 s` y pierden al `56 %` del tráfico frío. Abre con hecho directo (*«ChatGPT ya recomienda a tu competencia…»* o imperativo seco *«Suelta Claude Code un minuto.»*).
+* **No-duplicación (`< 40 %` de solape léxico):** El texto en pantalla (`≤ 6 palabras`) abre el ángulo amplio o muestra `Z-Depth` monumental (`404 px` detrás de William) sin repetir literalmente la voz.
 
-### 3. Bloque `EL DOLOR / THE STAKE` antes del Ítem #1 (`~5–10 s`)
-* **Prohibido** saltar del gancho directo al ítem #1 (patrón TikTok Promote `#040` `5.4M` y `#072` `36.5M` vistas).
-* La **Toma 2 (`L02`)** debe mostrar y hacer sentir el desastre cotidiano, pérdida de tiempo o frustración de **no** tener esos `N` elementos (incluyendo explícitamente al público no experto cuando aplique).
-* Recién en `L03` entra un corte seco de rescate (*«Aquí no.»* / *«Hasta que pruebas esto.»*) seguido del Ítem #1.
+### 3. Compresión Estadística sin Puentes Retóricos (`≤ 6.0 s` Reloj, `0.0 s` de Relleno)
+* Dos estudios o estadísticas consecutivas **aplanan la curva de retención** siempre que vayan pegadas (*Magnitud → Causa*).
+* **Prohibidas las frases puente vacías** entre datos o antes del Paso 1 (*«Te dejo tres pasos para entrar en esa lista»*, *«¿Por qué tan pocos? Una pista:»*, *«Esta semana salió un estudio…»*). Ese puente sin datos restó `-7 pts` (`41 %` de fuga en `9.5–15.2 s`). Pon el nombre del estudio y muestra (`SOCi · 350,000 ubicaciones`) en el subtítulo visual de `22 px` de la tarjeta blanca.
 
-### 4. Orden de Impacto (`2.º mejor → Escalada → Mejor al final`)
-* **Ítem `#1`:** Pon el **segundo punto más fuerte** para justificar el clic de inmediato.
-* **Ítems intermedios (`#2` a `#N-1`):** Escalada causal; cada punto resuelve la fricción que aparece después del anterior (*«¿Hizo un botón horrible?…» → «¿Quién prueba que sirva?…»*).
-* **Ítem `#N` (Clímax):** Guarda **el punto más sorprendente, nocturno o contraintuitivo** para el final. Evita el abandono prematuro tras el punto 3.
+### 4. Cadena de Evidencia Primaria Especializada (`facts.md`)
+* Nunca estires un único artículo para inventar pasos que no midió (`AGENTS.md` A1). Respalda cada pulso con su fuente primaria específica en `facts.md` (Magnitud → Mecanismo → Paso 1/2 → Caso real de contradicción → Factor decisivo).
 
-### 5. Ritmo Humano (`Burstiness ≥ 0.55`) + Regla Flow `1.0x` + Cortes `≤ 3.5 s`
-* **Variación radical de longitud de frase (`std / media ≥ 0.55`):** Prohibido escribir `N` tomas con oraciones uniformes de 18–20 palabras. Alterna **micro-remates secos o cómicos de 2 a 4 palabras** (*«Aquí no.»*, *«Ni yo aprendo así.»*, *«¿Tienes prisa?»*) con frases de acción concretas de 10 a 14 palabras.
-* **Límite de voz en Google Flow (`AGENTS.md` A5):** Voz estrictamente a `1.0x` (prohibido `atempo`). Cada toma completa (`8 s` máx.) debe tener entre **15 y 20 palabras** (tope máximo: 22).
-* **Sub-cortes internos (`A → B ≤ 3.5 s`):** Ningún encuadre permanece estático más de `3.5–4.0 s`. Toda toma alterna dos estados visuales (`PC → PD`, `PV → GRAF`, `GRAF → PC`).
-* **Español neutro de Guatemala (`AGENTS.md` B1):** Prohibidos regionalismos marcados (*«ocupas»*, *«ojo con»*, *«chaval»*, *«che»*, *«parce»*) y muletillas de IA (*«en el mundo actual»*, *«sumérgete»*, *«revolucionario»*, guiones largos `—`).
+### 5. Cadencia Abordable de Palabras en 2 Niveles (`1.000x`, Cero `atempo`)
+Para que el español suene `100 %` natural y ejecutivo sin asfixiar las frases ni exceder el pulso visual de `4–6 s`:
+* **Nivel 1 · Pulso Ágil (`10 a 18 palabras fonéticas`, ideal `12–17`):** Dura `3.5–5.8 s` reales y entra limpio en **un clip `Omni 1.1 Flash · 6 s · 720p` (`10 créditos`)** con un único estado de Cámara + Posición.
+* **Nivel 2 · Pulso Extendido (`19 a 24 palabras fonéticas`):** Totalmente permitido cuando una idea o caso real lo pide; se genera en **clip `8 s · 720p` (`12 créditos`)** y **`engine.js` aplica un sub-corte visual a mitad de toma (`t_local ≈ 4.0–4.8 s`)** para que ningún encuadre supere `6.0 s` estáticos.
+* **Desborde (`≥ 25 palabras fonéticas`):** Dividir en dos pulsos causales (o usar `--allow-override` solo en casos justificados).
 
-### 6. Re-Hook + CTA Temprano con Precisión Espacial (`~50 %`, `#113` TikTok)
-* Justo a la mitad de la lista (ej. tras el punto 3 de 6, o el 2/3 de 5), inserta un cambio de ritmo musical y un **Re-Hook** con humor ligero.
-* Si se pide *Like* a mitad del video: señalar **a la derecha** (`x ≈ 900 px`, decir *«aquí al lado»*, **jamás «aquí abajo»**) y atarlo a un bucle abierto (*«porque los últimos tres parecen trampa»*).
+### 6. Ritmo Humano (`Burstiness CV ≥ 0.55`) y Español Neutro de Guatemala
+* Alterna **micro-reacciones de 2 a 4 palabras** (*«Aquí no.»*, *«Puro desastre.»*, *«¡Pero atento!»*) con oraciones de `10 a 15` palabras.
+* Prohibidos regionalismos marcados (*«ocupas»*, *«ojo con»*, *«chaval»*, *«che»*, *«parce»*) y muletillas de IA (`—`, *«en el mundo actual»*, *«revolucionario»*).
 
-### 7. Doble Cierre Viral: `DM Sends` en Voz + `Mapa N/N` en Pantalla + `Loop`
-Nunca pidas dos acciones habladas a la vez. Divide el trabajo entre oído y vista:
-* **Voz → Dispara compartidos por DM (`3×–5×` peso algorítmico):** Nombra **1 o 2 perfiles hiper-específicos** de amigo o colega (*«Mándaselo a tu amigo con cien ideas y cero código, o al que sigue casado con…»*).
-* **Pantalla → Dispara Guardados (`#031` `+45 %` recuerdo y `#079` `10.7M` vistas):** Muestra arriba una **Tarjeta Mapa Coleccionable (`N/N`)** limpia dentro de la Safe Zone (`x: 72–910 px`, `y: 200–1320 px`) para invitar captura/guardado sin saturar de texto (`≤ 6 palabras` por encabezado).
-* **Loop verbal exacto:** Termina la última frase con la misma marca o palabra ancla de `L01` para conectar el final con el segundo `0.0`.
+### 7. Re-Hook por Contradicción Real a Mitad (`40 %–50 %` del Metraje)
+* Tras enseñar el Paso 1, inyecta un **caso real verificado que cumplió lo básico e igual falló** por omitir el siguiente factor (*«¡Pero atento! Un restaurante con mil cinco reseñas y 4.8 estrellas quedó fuera en la mitad de búsquedas»*) acompañado de cambio a Contrapicado `Cam B` o Pantalla Completa (`0 %` de pérdida en telemetría real).
+* Si se señala el botón *Like*, indicar **a la derecha** (*«aquí al lado»*, jamás *«aquí abajo»*).
+
+### 8. Cierre Comercial Disociado: `Guardar` Visual + `1 Acción` Hablada + Cero Fuga a Terceros
+* **Prohibición comercial absoluta:** Jamás digas *«envíaselo a quien maneja tu página web / tu marketing»* en videos B2B de marca propia (empuja al cliente hacia otra agencia en vez de contratarte a ti).
+* **Prohibida la disyuntiva hablada *«Guarda esta guía O comenta…»*:** El cerebro elige el esfuerzo mínimo (`Guardar`) y deja `0` comentarios.
+  - **Canal Visual Silencioso → Guardados:** Muestra la Hoja Editorial Suiza (`#s9-sheet`) y haz que el Cursor Causal (`84 px`) haga clic en `Guardar guía` con sonido `click`.
+  - **Canal Vocal → Comentarios / DMs:** Pide en voz **una sola acción concreta** (ej. una pregunta abierta de rubro/diagnóstico o un envío por DM a un socio/amigo específico) cerrando con *loop* léxico hacia `L01`.
 
 ---
 
-## Flujo de Trabajo Paso a Paso
-
-1. **Verificar hechos primero (`facts.md`):**
-   - Documentar fuentes primarias reales para los `N` puntos antes de redactar una sola línea (`AGENTS.md` A1). Si una función requiere plan de pago o tiene una condición real, anotarla con transparencia en pantalla (`Plan Pro` / `Plan de pago`).
-2. **Definir la escalada `Pero / Entonces` y el mapa de `N + 4` tomas:**
-   - Para una lista de `N` cosas, la estructura base tiene **`N + 4` tomas** (~`45–55 s`):
-     - `L01`: Gancho triple sin duplicación (`0–5 s`).
-     - `L02`: `El Dolor / The Stake` cotidiano (`5–10.5 s`).
-     - `L03` a `L(2 + mitad)`: Primera mitad de ítems encadenados por fricción real.
-     - `L(Re-Hook)`: Quiebre de patrón a mitad + CTA espacial (*«aquí al lado»*) + bucle abierto.
-     - Siguientes tomas hasta Ítem `#N`: Segunda mitad escalando hasta el ítem más salvaje al final.
-     - Toma final: Mapa coleccionable `N/N` en pantalla + CTA hablado de *DM Send* con perfil concreto + *Loop* verbal hacia `L01`.
-3. **Ejecutar el validador automático (`audit_listicle.py`) antes de mostrar el guion:**
-   - Corre [scripts/audit_listicle.py](./scripts/audit_listicle.py) sobre el archivo JSON del borrador (español y/o inglés).
-   - **Prohibido entregar el guion a William si el validador marca `FAIL` o `REVIEW`.** Corrige longitud de gancho, *burstiness*, palabras por toma o duplicación de texto hasta obtener `PASS`.
-4. **Presentar la tabla DEM para aprobación (`AGENTS.md` A10):**
-   - Mostrar la tabla completa con columnas: `Toma`, `Cortes (A → B ≤ 3.5 s)`, `Texto en pantalla (≤ 6 pal)`, `Acción visual DEM (Safe Zone)`, `Texto hablado (1.0x)` y `Pal.`.
-   - Esperar aprobación explícita de William antes de generar cualquier toma en Google Flow.
-
----
-
-## Validador Automático (`scripts/audit_listicle.py`)
-
-El script [audit_listicle.py](./scripts/audit_listicle.py) evalúa sin dependencias externas:
-- **Hook Score (`≥ 75 STRONG`):** brevedad de la 1.ª oración (`≤ 8 palabras`), especificidad, tensión, *frontload* y apelación directa.
-- **No-duplicación `L01`:** solapamiento entre voz y texto en pantalla `< 40 %` y tope de `≤ 6 palabras` por rótulo.
-- **Burstiness humano (`CV ≥ 0.55`) y Anti-Slop:** variación de longitud de oraciones (Unicode completo para español e inglés), ausencia de muletillas de IA, ausencia de `—` y ausencia de modismos prohibidos en `AGENTS.md`.
-- **Detector Anti-Catálogo:** bloquea enumeraciones planas (*«Uno: … Dos: …»*) en la voz.
-- **Ritmo Flow `1.0x` + Cortes + Loop:** verifica `12–22 palabras` por toma, sub-cortes `≤ 4.0 s`, dirección espacial correcta del Like y *loop* léxico entre la primera y la última toma.
-
-### Uso rápido
+## Uso del Validador Automático (`scripts/audit_listicle.py`)
 
 ```bash
-python3 /Users/williamromero/MediaProjects/WBRS/.agents/skills/viral-listicle-story/scripts/audit_listicle.py \
+# Mediante el CLI global de WVF:
+wvf audit-script borrador_guion.json --lang es
+
+# O directamente (soporta JSON o tabla Markdown GUION.md, y --allow-override):
+python3 /Users/williamromero/MediaProjects/WBRS/video-factory/skills/viral-listicle-story/scripts/audit_listicle.py \
   borrador_guion.json --lang es
 ```
-
-Formato mínimo de `borrador_guion.json`:
-```json
-{
-  "takes": [
-    {
-      "id": "L01",
-      "cuts_sec": [1.8, 3.4],
-      "screen_text": "CREA APPS SIN SABER CÓDIGO",
-      "spoken": "Suelta Claude Code un minuto. Sé que le haces el feo a Antigravity, pero es mejor de lo que piensas."
-    }
-  ]
-}
-```
-
----
-
-## Ejemplo Canónico Aprobado
-
-Consulta [examples/seis_comandos_antigravity_v3.md](./examples/seis_comandos_antigravity_v3.md) para ver un guion completo aprobado por William (español neutro de Guatemala + espejo en inglés, 10 tomas, `Burstiness = 0.61`, `Hook Score ≥ 80`).
-
-## Dependencias y Skills Complementarias
-
-- [AGENTS.md](../../../AGENTS.md): Reglas maestras de guion, acento neutro de Guatemala, voz `1.0x` y punto de aprobación antes de Flow.
-- [manual_documental_en_movimiento.md](../../../manual_documental_en_movimiento.md): Piezas visuales (`PC`, `PD`, `PV`, `GRAF`, `CINE`), escala de William y paleta cromática.
-- `viral-video-masterclass-2026` y `webres-video-factory`: Sincronización sub-milisegundo con Whisper, renderizado a `60fps` y diseño sonoro.
-- `social-copy-multichannel-2026`: Redacción de descripciones SEO y ganchos de 125 caracteres para IG, TikTok, Shorts y LinkedIn.

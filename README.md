@@ -102,7 +102,7 @@ flowchart TD
 
 ## 🚀 Instalación en Cualquier Mac (60 Segundos)
 
-WVF incluye un instalador idempotente que detecta tu arquitectura (Apple Silicon `arm64` o Intel `x86_64`), configura dependencias vía Homebrew y `uv`, compila el entorno virtual e instala las **7 skills de producción** de forma global para tus agentes de IA.
+WVF incluye un instalador idempotente que detecta tu arquitectura (Apple Silicon `arm64` o Intel `x86_64`), configura dependencias vía Homebrew y `uv`, compila el entorno virtual e instala las **17 skills de producción** de forma global para tus agentes de IA.
 
 ```bash
 git clone https://github.com/webresstudio/video-factory.git
@@ -114,7 +114,7 @@ El instalador:
 1. Comprueba o instala `ffmpeg` y `uv`.
 2. Crea el entorno virtual en `.venv` con librerías científicas (`numpy`, `scipy`, `soundfile`, `faster-whisper`, `playwright`, `pillow`).
 3. Descarga el binario Chromium para Playwright.
-4. Vincula automáticamente las 7 skills a `~/.gemini/config/skills` (Antigravity IDE), `~/.agents/skills` (Codex) y `~/.claude/skills` (Claude Code).
+4. Vincula automáticamente las 17 skills a `~/.gemini/config/skills` (Antigravity IDE), `~/.agents/skills` (Codex) y `~/.claude/skills` (Claude Code).
 5. Registra el comando global `wvf` en tu terminal (`~/.local/bin/wvf`).
 
 Comprueba que todo esté en orden:
@@ -184,7 +184,18 @@ wvf share --send-wa --contact "William Romero"
 # 12. Corrección quirúrgica de una palabra (e.g. 'API' por 'ápi')
 wvf fix-word L01 "API" "la ápi"
 
-# 13. Cualquier otra herramienta del pipeline (prompts, Flow, inspección)
+# 13. Auditoría de guion (2 niveles 6s/8s), Punto Dulce visual y Psicoacústica CQT
+wvf audit-script GUION.md --lang es
+wvf audit-sweetspot
+wvf audit-music audio/music_only.wav --voice audio/voice.wav --master audio/master.wav
+
+# 14. Analítica multi-red, horas óptimas empíricas (FB != IG != TikTok) y Ledger (0-100)
+wvf analytics --platform all --save-windows
+wvf ledger record --project .
+wvf ledger compare
+
+# 15. Cualquier otra herramienta del pipeline (prompts, Flow QC, inspección)
+wvf tool flow_qc lint --line L01 --prompt prompts/L01_r1.txt
 wvf tool make_prompts
 wvf tool inspect_clip L01
 ```
@@ -273,19 +284,29 @@ La integración usa voz sintética de prueba, Chromium/Chrome, FFmpeg y un servi
 
 `WVF_PREVIEW_URL` permite usar un servidor en un puerto diferente a 4391. El comando global `wvf` y las skills enlazadas apuntan al checkout instalado y quedan actualizados al recibir esta versión.
 
-## 📦 Skills de Producción Incluidas
+## 📦 Las 17 Skills de Producción Incluidas
 
-El repositorio incluye y distribuye automáticamente el stack completo de habilidades de diseño de video:
+El repositorio incluye y distribuye automáticamente el stack completo de 17 habilidades de dirección, animación determinista, psicoacústica y analítica multi-marca:
 
 | Skill | Función Clave en WVF |
 |---|---|
 | `webres-video-factory` | Orquestador maestro del pipeline de 10 fases y control de calidad. |
-| `internet-video-2026` | Mecánicas de retención: hook en <1s, re-hooks por cada tip, loops de cierre. |
+| `wbrs-retention-sweetspot` | Ingeniería del Punto Dulce: pulsos visuales de `4.0–6.0 s`, Z-Depth `#zback` detrás del presentador, `nativeHairY` RGBA continuo, Pie Charts `<0.5s` y Story V2 (`wvf audit-sweetspot`). |
+| `wbrs-psychoacoustic-mix` | Auditoría musical CQT (`Q=34`): escala Mayor `>=80%`, Octavas 3–4 (`180–780 Hz`), `0` cortes internos, SFX afinados y ventana vocal `-12.0 a -13.5 dB` a `-14 LUFS` (`wvf audit-music`). |
+| `viral-listicle-story` | Narrativa causal para videos de listas con cadencia flexible de 2 niveles (`6 s` / `8 s`) y validador automático (`wvf audit-script`). |
+| `social-analytics-audit` | Auditoría automática en TikTok Studio, Meta Business Suite e Instagram, descubrimiento de hora óptima independiente para `FB`, `IG` y `TikTok` por marca y contabilidad `WBRS Score 0–100` (`wvf analytics`, `wvf ledger`). |
+| `social-copy-multichannel-2026` | Copywriting SEO multimodal en 4 capas (Google/IG/TikTok/LinkedIn H.O.O.P.S. + Alt Text) con despliegue por ventana empírica de cada red. |
+| `tiktok-promote-ui-demos` | Zonas seguras TikTok Promote (`x: 72–910px`, `y: 200–1320px`) y exportación dual `?tiktok=1`. |
+| `hyperframes-causal-cursor` | Cursor protagonista causal (`84–124 px`) sincronizado al milisegundo exacto de la palabra (`W()`). |
+| `manim-progressive-proof` | Pruebas visuales progresivas (`Wrong -> Right`), foco selectivo y medidores dinámicos. |
+| `gsap-word-sequencer` | Secuenciación semántica por etiquetas de voz a 60 fps con cero reflujo de DOM. |
+| `shotcraft-ui-recipes` | Recetas de interfaz real con tokens auténticos del producto (cero pantallas genéricas de IA). |
+| `lottie-attention-choreography` | Jerarquía de atención de un solo protagonista, regla `1/3` y contramovimiento con paralaje. |
+| `internet-video-2026` | Mecánicas de retención: hook en `<1s`, re-hooks espaciales y loops de cierre. |
 | `motion-kinetic-typography` | Tipografía suiza sin cajas, íconos Lucide SVG, números tabulares, cero emojis. |
 | `dynamic-text-animations` | Revelación por horizonte de máscara, cascada de caracteres, líneas vectoriales finas. |
 | `commercial-video-transitions-2026` | Transiciones comerciales de 6 a 18 cuadros (match-cut morphs, knife-edge, scale-punch). |
 | `impeccable` | Craft-floor visual: eliminación de tarjetas cliché, jerarquía limpia, micro-interacciones. |
-| `social-copy-multichannel-2026` | Copywriting multi-red sin slop para LinkedIn, YouTube Shorts, Reels y TikTok. |
 
 ---
 

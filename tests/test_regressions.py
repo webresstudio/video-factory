@@ -27,6 +27,9 @@ import chromejs
 import social_analytics
 import whisper_compat
 import env_config
+import flow_qc
+import audit_sweetspot
+import video_ledger
 
 
 def load_cli():
@@ -301,7 +304,7 @@ class RegressionTests(unittest.TestCase):
     def test_installer_preserves_custom_skill(self):
         custom=self.tmp/'skills/webres-video-factory';custom.mkdir(parents=True);(custom/'SKILL.md').write_text('CUSTOM')
         # Execute the real registration block without dependency downloads or global changes.
-        source=(ROOT/'install.sh').read_text();block=source[source.index('for skill_path in'):source.index('\necho "✓ 15 Skills')]
+        source=(ROOT/'install.sh').read_text();block=source[source.index('for skill_path in'):source.index('\necho "✓ 17 Skills')]
         env=dict(os.environ,DIR=str(ROOT),GLOBAL_SKILLS_DIR=str(self.tmp/'skills'),USER_AGENTS_DIR=str(self.tmp/'agents'),CLAUDE_SKILLS_DIR=str(self.tmp/'claude'))
         (self.tmp/'agents').mkdir();(self.tmp/'claude').mkdir()
         result=subprocess.run(['bash','-c',block],env=env,capture_output=True,text=True)
@@ -310,6 +313,8 @@ class RegressionTests(unittest.TestCase):
         self.assertTrue((self.tmp/'claude/webres-video-factory').is_symlink())
         self.assertTrue((self.tmp/'agents/hyperframes-causal-cursor').is_symlink())
         self.assertTrue((self.tmp/'agents/social-analytics-audit').is_symlink())
+        self.assertTrue((self.tmp/'agents/wbrs-retention-sweetspot').is_symlink())
+        self.assertTrue((self.tmp/'agents/wbrs-psychoacoustic-mix').is_symlink())
         self.assertEqual(subprocess.run(['bash','-c',block],env=env,capture_output=True).returncode,0)
 
     def test_audit_script_subcommand_runs(self):
@@ -471,10 +476,174 @@ class RegressionTests(unittest.TestCase):
         self.assertIn("asset_id=1027787490574070", meta_url)
 
         cli = load_cli()
-        with patch.object(sys, "argv", ["wvf", "analytics", "--platform", "meta", "--limit", "3", "--model", "b2b_high_ticket"]), patch.object(cli, "cmd_exec_tool", return_value=0) as mock_exec:
+        with patch.object(sys, "argv", ["wvf", "analytics", "--platform", "meta", "--limit", "3", "--model", "b2b_high_ticket", "--save-windows"]), patch.object(cli, "cmd_exec_tool", return_value=0) as mock_exec:
             with self.assertRaises(SystemExit):
                 cli.main()
-        mock_exec.assert_called_once_with("social_analytics.py", ["--platform", "meta", "--limit", "3", "--model", "b2b_high_ticket"])
+        mock_exec.assert_called_once_with("social_analytics.py", ["--platform", "meta", "--limit", "3", "--model", "b2b_high_ticket", "--save-windows"])
+
+    def test_per_brand_per_network_optimal_publish_windows(self):
+        # Brand A: morning FB, noon IG, afternoon TikTok
+        brand_a = social_analytics.discover_brand_publish_windows(
+            social_configuration={"client_name": "Webres Studio", "instagram_handle": "webresstudio"},
+            tiktok_videos=[{"published_hour": 13.0, "views": 950, "average_watch_seconds": 9.5, "saves": 8, "shares": 2}],
+            meta_items=[
+                {"post_type": "reel", "platform_channel": "instagram", "is_crossposted": False, "published_hour": 12.0, "views": 420, "reach": 350, "average_play_seconds": 11.0, "saves": 6, "shares": 3, "interactions": 25},
+                {"post_type": "reel", "platform_channel": "facebook", "is_crossposted": False, "published_hour": 8.0, "views": 610, "reach": 500, "average_play_seconds": 9.0, "saves": 1, "shares": 4, "interactions": 30},
+            ],
+            instagram_reels=[],
+            tiktok_overview={"peak_activity_start_hour": 14.0},
+        )
+        # Brand B: evening B2C ecommerce across channels
+        brand_b = social_analytics.discover_brand_publish_windows(
+            social_configuration={"client_name": "Tienda Nocturna", "instagram_handle": "tiendanocturna"},
+            tiktok_videos=[{"published_hour": 20.5, "views": 4200, "average_watch_seconds": 14.0, "saves": 40, "shares": 15}],
+            meta_items=[
+                {"post_type": "reel", "platform_channel": "instagram", "is_crossposted": False, "published_hour": 19.5, "views": 1800, "reach": 1500, "average_play_seconds": 13.0, "saves": 22, "shares": 10, "interactions": 90},
+                {"post_type": "reel", "platform_channel": "facebook", "is_crossposted": False, "published_hour": 21.0, "views": 1200, "reach": 980, "average_play_seconds": 10.5, "saves": 5, "shares": 12, "interactions": 65},
+            ],
+            instagram_reels=[],
+            tiktok_overview={"peak_activity_start_hour": 21.0},
+        )
+        # Within Brand A: FB != IG != TikTok
+        self.assertNotEqual(brand_a["facebook"]["empirical_peak_hour"], brand_a["instagram"]["empirical_peak_hour"])
+        self.assertNotEqual(brand_a["instagram"]["empirical_peak_hour"], brand_a["tiktok"]["empirical_peak_hour"])
+        self.assertLess(brand_a["facebook"]["empirical_peak_hour"], 10.0)
+        # Across brands: Brand A != Brand B on all three networks
+        for net in ("tiktok", "instagram", "facebook"):
+            self.assertNotEqual(brand_a[net]["recommended_deploy_window"], brand_b[net]["recommended_deploy_window"])
+            self.assertGreater(brand_b[net]["empirical_peak_hour"], 18.0)
+
+    def test_audit_listicle_two_tier_cadence_and_new_gates(self):
+        # Valid 2-tier script: L01 (15w -> 6s), L02 (15w -> 6s), L03 (20w -> 8s), L04 (14w -> 6s)
+        good_draft = self.tmp / "good_sweetspot.json"
+        good_draft.write_text(json.dumps({
+            "takes": [
+                {"id": "L01", "cuts_sec": [2.2, 2.8], "screen_text": "PIERDES CLIENTES HOY", "spoken": "Suelta tu página muda un minuto. Chat yi pi tí recomienda hoy a tu competencia directa."},
+                {"id": "L02", "cuts_sec": [2.4, 2.6], "screen_text": "FUGA SILENCIOSA", "spoken": "Puro abandono real. Cuarenta por ciento busca ahí primero y tu sitio sigue totalmente invisible."},
+                {"id": "L03", "cuts_sec": [3.8, 3.6], "screen_text": "1 · ESQUEMA DIRECTO", "spoken": "Aquí no. Coloca precios claros, preguntas reales y casos medibles arriba para que el modelo te cite siempre primero."},
+                {"id": "L04", "cuts_sec": [2.5, 2.5], "screen_text": "MAPA COMPLETO", "spoken": "Mándaselo hoy a tu socio comercial para revisar juntos cómo aparece su marca ahora."},
+            ]
+        }))
+        res_ok = self.run_cli("audit-script", good_draft, "--lang", "es")
+        self.assertEqual(res_ok.returncode, 0, res_ok.stdout + res_ok.stderr)
+
+        # Bad draft triggering conditional L01, empty bridge, commercial leak, and Save-OR-Comment disjunction
+        bad_draft = self.tmp / "bad_sweetspot.json"
+        bad_draft.write_text(json.dumps({
+            "takes": [
+                {"id": "L01", "cuts_sec": [2.5, 2.5], "screen_text": "IA HOY", "spoken": "Puede que estés perdiendo ventas hoy en internet sin darte cuenta todavía amigo."},
+                {"id": "L02", "cuts_sec": [2.5, 2.5], "screen_text": "PUENTE", "spoken": "Por qué tan pocos negocios salen ahí, te dejo tres pasos muy simples hoy."},
+                {"id": "L03", "cuts_sec": [2.5, 2.5], "screen_text": "1 · WEB", "spoken": "Pídele hoy mismo a quien maneja tu web que agregue datos estructurados limpios."},
+                {"id": "L04", "cuts_sec": [2.5, 2.5], "screen_text": "CIERRE", "spoken": "Guarda esta lista para después o comenta abajo qué opinas de este cambio."},
+            ]
+        }))
+        out_json = self.tmp / "bad_report.json"
+        res_bad = self.run_cli("audit-script", bad_draft, "--lang", "es", "--output", out_json)
+        self.assertNotEqual(res_bad.returncode, 0)
+        rep = json.loads(out_json.read_text())
+        joined = json.dumps(rep, ensure_ascii=False).lower()
+        self.assertIn("conditional", joined)
+        self.assertIn("empty rhetorical bridge", joined)
+        self.assertIn("quien maneja tu web", joined)
+        self.assertIn("save or comment", joined)
+
+    def test_flow_qc_lint_blocks_quotes_and_body_words_and_scores_6s_8s(self):
+        p = self.tmp / "flow_proj"
+        (p / "prompts").mkdir(parents=True)
+        spoken_14 = "Tu competencia aparece hoy en Chat yi pi tí cuando buscan tu servicio exacto."
+        spoken_20 = "Aquí cambia todo porque colocas precios claros y casos medibles arriba para que el modelo te cite siempre primero hoy."
+        (p / "script.json").write_text(json.dumps([
+            {"id": "L01", "text": spoken_14},
+            {"id": "L02", "text": spoken_20},
+        ]))
+        clean_l01 = (
+            "[PROJ L01 R1] Use @Yo avatar likeness. Frontal Camera A eye level shot on pure chroma green. "
+            "Start speaking immediately with neutral GUATEMALAN Spanish accent, NO text on screen, 6 seconds, vertical 9:16. "
+            f"Exact dialogue: «{spoken_14}»"
+        )
+        (p / "prompts/L01_r1.txt").write_text(clean_l01)
+        r1 = flow_qc.lint(str(p), "L01", str(p / "prompts/L01_r1.txt"))
+        self.assertEqual(r1["fails"], [])
+        self.assertEqual(r1["info"]["dur_recomendada"], 6)
+
+        bad_l02 = (
+            '[PROJ L02 R1] Use @Yo avatar with a 200 lb muscular build saying "hello" in background. '
+            "Frontal Camera A eye level shot. Start speaking immediately, GUATEMALAN accent, NO text, 8 seconds, vertical 9:16. "
+            f"Exact dialogue: «{spoken_20}»"
+        )
+        (p / "prompts/L02_r1.txt").write_text(bad_l02)
+        r2 = flow_qc.lint(str(p), "L02", str(p / "prompts/L02_r1.txt"))
+        self.assertEqual(r2["verdict"], "FAIL")
+        self.assertEqual(r2["info"]["dur_recomendada"], 8)
+        self.assertTrue(any("Comillas" in f for f in r2["fails"]))
+        self.assertTrue(any("Descriptor corporal" in f for f in r2["fails"]))
+        self.assertTrue(any("cámara repetido" in w for w in r2["warns"]))
+
+    def test_audit_sweetspot_rgba_hair_scan_and_story_corridor(self):
+        from PIL import Image
+        proj = self.tmp / "sweet_proj"
+        (proj / "matte/L01").mkdir(parents=True)
+        # Create 1080x1920 RGBA matte with opaque hair starting at y=164
+        arr = np.zeros((1920, 1080, 4), dtype=np.uint8)
+        arr[164:1800, 340:740, :] = [40, 50, 60, 255]
+        Image.fromarray(arr, mode="RGBA").save(proj / "matte/L01/0001.png")
+
+        (proj / "timing.js").write_text(
+            "window.TIMING = { totalDuration: 42.0, lines: ["
+            "{id:'L01', start:0.0, end:5.0}, {id:'L02', start:5.0, end:10.2}"
+            "] };\n"
+        )
+        (proj / "index.html").write_text("<div id='zback'>IMPACTO</div><div id='s9-sheet'></div>")
+        (proj / "style.css").write_text("#zback { z-index: 14; font-size: 404px; }")
+        (proj / "engine.js").write_text(
+            "// Cam A P1 -> Cam B P2\n"
+            "const CAMS = [{line:'L01', cam:'A', pos:'P1'}, {line:'L02', cam:'B', pos:'P2'}];\n"
+            "function renderAt(t) { /* cursor 84px */ }\n"
+        )
+        (proj / "story_nuevo_video.html").write_text(
+            "<style>#zback{z-index:14;} .cta-pill{top:1440px;} /* sticker safe 1255..1415 */</style>"
+            "<div id='zback'>CHATGPT</div>"
+        )
+        manifest = audit_sweetspot.audit_project_sweetspot(str(proj))
+        self.assertTrue((proj / "check/engineering_manifest.json").is_file())
+        self.assertEqual(manifest["native_hair_y"]["L01"], 164)
+        self.assertTrue(manifest["story_v2"]["sticker_corridor_1255_1415_clean"])
+
+    def test_video_ledger_wbrs_score_and_compare(self):
+        metrics = {
+            "total_organic_views": 670,
+            "tt_avg_watch_s": 8.07,
+            "ig_avg_watch_s": 7.8,
+            "total_saves": 5,
+            "total_comments": 1,
+            "total_shares_dms": 1,
+            "new_followers": 2,
+            "story_ctr_pct": 4.4,
+            "ig_non_followers_pct": 76.9,
+            "ig_clean_no_ai_badge": True,
+            "retention_vector": {"r_02s": 49.5, "r_03s": 39.0, "r_05s": 23.0, "r_15s": 9.0},
+        }
+        sc = video_ledger.compute_wbrs_score(metrics)
+        self.assertAlmostEqual(sc["wbrs_score"], 75.2, delta=0.5)
+        tmp_ledger = self.tmp / "video_ledger.jsonl"
+        proj = self.tmp / "ledger_proj"
+        proj.mkdir()
+        (proj / "project_config.json").write_text(json.dumps({"client_name": "Acme Corp", "social": {"business_model": "b2b_high_ticket"}}))
+        res_rec = self.run_cli(
+            "ledger", "record",
+            "--project", proj,
+            "--ledger", tmp_ledger,
+            "--video-id", "ads/acme-2026-11-12",
+            "--r02", "49.5", "--r03", "39.0", "--r05", "23.0", "--r15", "9.0",
+            "--tt-avg", "8.07", "--ig-avg", "7.8",
+            "--views", "670", "--saves", "5", "--comments", "1", "--shares", "1", "--follows", "2",
+            "--story-ctr", "4.4",
+        )
+        self.assertEqual(res_rec.returncode, 0, res_rec.stderr)
+        res_cmp = self.run_cli("ledger", "compare", "--ledger", tmp_ledger)
+        self.assertEqual(res_cmp.returncode, 0, res_cmp.stderr)
+        self.assertIn("ads/acme-2026-11-12", res_cmp.stdout)
+        self.assertIn("75.3 / 100", res_cmp.stdout)
 
 
 if __name__=='__main__':unittest.main()
