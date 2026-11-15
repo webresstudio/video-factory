@@ -57,8 +57,8 @@ WVF is the official video production standard of **Webres Studio**. It replaces 
   - **Tier 2 · Pulso Extendido (`19–24` phonetic words → `~6.0–7.8 s`):** `Omni 1.1 Flash · 8 s · 720p` (`12 credits`) + a mid-take visual shift at `~4.0–4.8 s` in `engine.js` so no visual state exceeds `6.2 s`.
 * Keep `script.json` as the spoken-script and presenter-direction source. Put shot-level visual decisions in the project's edit plan or production notes so dialogue does not become cluttered with camera and animation instructions.
 * Also read `internet-video-2026` and `tiktok-promote-ui-demos` (`2.135B`-view TikTok Promote Creative Center rules: Safe Zone `x: 72–910px`, `y: 200–1320px`; dual subtitle export `1745px` IG/Shorts vs `1380px` TikTok `?tiktok=1`).
-* **Crucial Rule on Pronunciation:**
-  Flow @me spells out uppercase acronyms (e.g., "API" becomes "a-pe-i-ai"). Write phonetic equivalents in the script or prompt (`"la ápi"`).
+* **Crucial Rule on Pronunciation & Phonetic Contagion (`flow_qc lint`):**
+  Flow @me spells out uppercase acronyms (`"API"` → `"la ápi"`) AND suffers from **English-to-Spanish phonetic contagion** when mixing English tech terms (`Blender`, `Hydrogen`, `Orchestrator`, `prompt`) with Spanish/Maya cognates (`"gran jaguar"` → `"gran yawar"`). Use explicit accent guides in `spoken_text` (`"gran jáguar"`, `"Haidroyen"`, `"Orquestreitor"`) and verify with `wvf tool flow_qc lint`.
 * **USER APPROVAL CHECKPOINT 1:** Present the spoken-script table with its concise shot plan or storyboard. Do not generate Flow narration or commit to expensive visual production until the user approves the content and direction.
 
 ### Phase 3: Presenter & Voice Generation (Flow `@me`)
@@ -181,10 +181,10 @@ WVF is the official video production standard of **Webres Studio**. It replaces 
   3. **Contact Sheet for Every Video** (one unobstructed final-render contact sheet with footer timestamps for the main video + one for every story video).
   4. **Social Media Prompts / Copy** (`COPYS-REDES.md` updated with IG + Alt Text, TikTok, LinkedIn, Shorts + Story rollout order using **per-brand, per-network empirical optimal windows** where `Facebook ≠ Instagram ≠ TikTok` via `wvf analytics --save-windows`, never a hardcoded hour).
 * **Post-Publish Analytics & Quantitative Video Ledger (`social-analytics-audit`):**
-  - Audit live retention curves (React Fiber second-by-second extraction), recalibrate the brand's independent `FB`, `IG`, and `TikTok` publish windows, and record the `WBRS Score (0–100)`:
+  - Audit live retention curves across **TikTok Studio**, **YouTube Studio Shorts** (Polymer Shadow DOM), **Meta Business Suite**, and **Instagram** (with zero tab-focus stealing), recalibrate independent publish windows, and record the fair-weighted `WBRS Score (0–100)`:
     ```bash
-    wvf analytics --platform all --save-windows
-    wvf ledger record --project .
+    wvf analytics --platform all --yt-video <shortId> --self-subs <n> --save-windows
+    wvf ledger record --project . --exclude-self-follows <n>
     wvf ledger compare
     ```
 

@@ -35,9 +35,12 @@ Public Instagram Reels, TikToks, LinkedIn videos, and YouTube Shorts are indexed
 3. **Zero Emoji Slop & Zero Cheap Guru Clickbait:**
    - **Prohibited:** Emoji chains (`🚀🔥🤯✨`), 2022 CM clichés (*"etiquétalo sin contexto"*), and cheap course-seller phrasing (*"hazte rico sin programar en 5 minutos"*).
    - **Permitted:** `0` to `2` clean typographic symbols (`•`, `→`).
-4. **Zero Hardcoded Publish Hours (`FB ≠ IG ≠ TikTok` per Brand):**
-   - **Prohibited:** Burning a universal deploy hour (such as `12:30 p.m.`) across different brands or assuming Facebook, Instagram, and TikTok share the same optimal window inside `COPYS-REDES.md` or the Story calendar.
-   - **Mandatory:** Read `social.optimal_publish_windows` from `project_config.json` or `check/social_analytics.json` (generated via `wvf analytics --save-windows`), specifying the **empirical window separately for `Instagram`, `Facebook`, and `TikTok`** for that specific client/account. If a brand has no historical analytics yet, mark the schedule explicitly as `calibración inicial por modelo de negocio` until `wvf analytics` measures its real audience curve.
+4. **Zero Hardcoded Publish Hours (`FB ≠ IG ≠ TikTok ≠ YouTube` per Brand):**
+   - **Prohibited:** Burning a universal deploy hour (such as `12:30 p.m.`) across different brands or assuming Facebook, Instagram, TikTok, and YouTube Shorts share the same optimal window inside `COPYS-REDES.md` or the Story calendar.
+   - **Mandatory:** Read `social.optimal_publish_windows` from `project_config.json` or `check/social_analytics.json` (generated via `wvf analytics --save-windows`), specifying the **empirical window separately for `Instagram`, `Facebook`, `TikTok`, and `YouTube Shorts`** for that specific client/account.
+5. **Zero Post-Publish Caption/Tag Edits During First 48h on Instagram & Full 4-Channel Rollout:**
+   - **Prohibited:** Editing an Instagram Reel's caption, hashtags, or tagged accounts after publishing during the first `48 hours` (empirically shown to reset Meta's cold-exploration classifier, cutting non-follower reach from `76.9 %` down to `36.4 %`). Double-check `@mentions` and `Alt Text` *before* tapping Share.
+   - **Mandatory 4-Channel Deployment:** Never leave `YouTube Shorts` or `LinkedIn` unpublished on trending tech/B2B topics (`YouTube Shorts` delivered `716` views + `3.5 %` search traffic + `24.0 s` avg watch duration + `24 %` Desktop audience in just `4 hours` on *Gemini 4 Suite*).
 
 ---
 

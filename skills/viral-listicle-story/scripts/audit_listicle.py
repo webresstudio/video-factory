@@ -64,6 +64,12 @@ LANG_CONFIG = {
             "te dejo cinco pasos", "una pista:", "por qué tan pocos? una pista",
             "¿por qué tan pocos? una pista", "¿por qué pasa esto? una pista",
         ],
+        "bridge_take_re": re.compile(
+            r"\b(?:pusimos\s+a\s+los\s+dos\s+a|atento\s+a\s+la\s+segunda\s+prueba|"
+            r"vamos\s+con\s+la\s+(?:primera|segunda)\s+prueba|ahora\s+veamos\s+la\s+(?:primera|segunda)\s+prueba|"
+            r"hicimos\s+(?:una|otra)\s+prueba\s+para\s+ver)\b",
+            re.IGNORECASE,
+        ),
         "third_party_leak_phrases": [
             "quien maneja tu página", "quien maneja tu web", "quien lleva tu página",
             "quien lleva tu marketing", "tu agencia de marketing", "al que te lleva las redes",
@@ -124,6 +130,11 @@ LANG_CONFIG = {
         "empty_bridge_phrases": [
             "here are three steps", "i will give you three steps", "want a hint?",
         ],
+        "bridge_take_re": re.compile(
+            r"\b(?:we\s+put\s+both\s+of\s+them\s+to|pay\s+attention\s+to\s+the\s+second\s+test|"
+            r"let's\s+move\s+to\s+the\s+(?:first|second)\s+test)\b",
+            re.IGNORECASE,
+        ),
         "third_party_leak_phrases": [
             "whoever runs your website", "whoever manages your marketing", "your marketing agency",
         ],
@@ -387,6 +398,11 @@ def audit_script(data, lang, allow_override=False):
                 issues.append(f"{tid} cut #{idx} lasts {dur:.1f}s (> 6.2s visual habituation ceiling).")
             elif dur > 5.8:
                 warnings.append(f"{tid} cut #{idx} lasts {dur:.1f}s (borderline; optimal visual pulse is 4.0-5.8s).")
+
+        if t not in (takes[0], takes[-1]) and cfg["bridge_take_re"].search(t["spoken"]):
+            warnings.append(
+                f"{tid} pre-announces a demo/test ('{t['spoken'][:52]}...'): merge the setup into the first 1.5s of the visual demo take to save 6-8s and protect end-card retention."
+            )
 
         take_stats.append(
             {

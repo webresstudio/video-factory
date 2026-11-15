@@ -467,8 +467,9 @@ def main():
     p_qa.add_argument("file", nargs="?", help="Ruta al video master")
 
     # share
-    p_share = subparsers.add_parser("share", help="Comprime versión ligera (<15MB) y opcionalmente envía a WhatsApp")
+    p_share = subparsers.add_parser("share", help="Comprime versión ligera (<15MB), par oficial de Stories y opcionalmente envía a WhatsApp")
     p_share.add_argument("--master", help="Ruta al archivo master")
+    p_share.add_argument("--include-stories", action="store_true", help="Comprime también el par oficial de Stories hacia share/")
     p_share.add_argument("--send-wa", action="store_true", help="Envía a chat de WhatsApp Web")
     p_share.add_argument("--contact", default="William Romero", help="Nombre del contacto en WhatsApp")
 
@@ -519,16 +520,19 @@ def main():
     # analytics
     p_analytics = subparsers.add_parser(
         "analytics",
-        help="Audita métricas en TikTok Studio, Meta Business Suite e Instagram y descubre horas óptimas por red y marca",
+        help="Audita métricas en TikTok Studio, YouTube Studio, Meta Business Suite e Instagram y descubre horas óptimas por red y marca",
     )
-    p_analytics.add_argument("--platform", choices=["all", "tiktok", "meta", "instagram"], default="all", help="Plataforma a consultar")
+    p_analytics.add_argument("--platform", choices=["all", "tiktok", "youtube", "meta", "instagram"], default="all", help="Plataforma a consultar")
     p_analytics.add_argument("--limit", type=int, default=5, help="Videos recientes a inspeccionar")
     p_analytics.add_argument("--model", default="", help="Modelo de negocio (b2b_high_ticket, saas_product, ecommerce_b2c, editorial_news, education_creator)")
     p_analytics.add_argument("--ig", default="", help="Handle de Instagram del cliente")
     p_analytics.add_argument("--tiktok", default="", help="Handle de TikTok del cliente")
+    p_analytics.add_argument("--yt-video", default="", help="ID del video/Short en YouTube Studio (ej: 2GH8Di_g8ZI)")
+    p_analytics.add_argument("--self-subs", type=int, default=0, help="Suscriptores propios de prueba a descontar del neto")
+    p_analytics.add_argument("--benchmark", default="", help="Tema para comparar automáticamente contra Shorts de divulgadores tech")
     p_analytics.add_argument("--meta-asset", default="", help="asset_id en Meta Business Suite")
     p_analytics.add_argument("--meta-business", default="", help="business_id en Meta Business Suite")
-    p_analytics.add_argument("--save-windows", action="store_true", help="Guarda las horas óptimas empíricas (FB/IG/TikTok) en project_config.json")
+    p_analytics.add_argument("--save-windows", action="store_true", help="Guarda las horas óptimas empíricas (FB/IG/TikTok/YT) en project_config.json")
     p_analytics.add_argument("--out", default="", help="Ruta de salida para el JSON de analítica")
 
     # tool
@@ -574,6 +578,7 @@ def main():
     elif args.command == "share":
         extra = []
         if args.master: extra += ["--master", args.master]
+        if args.include_stories: extra += ["--include-stories"]
         if args.send_wa: extra += ["--send-wa"]
         if args.contact: extra += ["--contact", args.contact]
         sys.exit(cmd_exec_tool("share.py", extra + unknown))
@@ -625,6 +630,12 @@ def main():
             extra += ["--ig", args.ig]
         if args.tiktok:
             extra += ["--tiktok", args.tiktok]
+        if args.yt_video:
+            extra += ["--yt-video", args.yt_video]
+        if args.self_subs:
+            extra += ["--self-subs", str(args.self_subs)]
+        if args.benchmark:
+            extra += ["--benchmark", args.benchmark]
         if args.meta_asset:
             extra += ["--meta-asset", args.meta_asset]
         if args.meta_business:

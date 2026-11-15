@@ -25,6 +25,12 @@ Human visual habituation on vertical feeds triggers thumb-scroll after **`~6.2 s
 | **Tier 1 · Pulso Ágil (Default)** | **`10 – 18 words`** *(sweetspot `12–17`)* | `3.5 – 5.8 s` | **`6 s · 720p`** (`10 credits`) | Entire take is one crisp visual beat; switch **both Camera Angle and Spatial Position** on the next take. |
 | **Tier 2 · Pulso Extendido (Full Idea / Case)** | **`19 – 24 words`** | `6.0 – 7.8 s` | **`8 s · 720p`** (`12 credits`) | Voice flows naturally in one unbroken take, while **`engine.js` triggers a clean mid-take spatial shift at `t_local ≈ 4.0–4.8 s`** (e.g., `Pos P2 → P4` cutting to 100% Fullscreen on the punchline, or Card A → Card B with `zoom 1.06 → 1.16`). |
 
+### Mandatory Cold-Open Visual Proof (`0.0–1.4 s`) & Duration/End-Card Law
+Validated across TikTok Studio (`0:01` primary drop-off) and YouTube Studio (`7.0 %` *Se quedaron viendo* vs `93.0 %` *Saltaron el contenido*, while viewers who stay watch **`24.0 s`** on average):
+- **Never open `0.0–3.5 s` with presenter-only talking-head when the video has visual demos:** Show a **`0.0–1.4 s` fullscreen or split-canvas visual flash** of the strongest visual proof (e.g., 3D wireframe → monument or live 60fps UI) BEFORE or behind the opening hook sentence (`first_visual_proof_sec <= 8.5 s`).
+- **Ban Pure Narrative Setup Bridges (*Show-While-Telling*):** Never spend `6–7 s` on camera merely announcing *"Pusimos a los dos a..."* or *"Pero atento a la segunda prueba, les pedimos..."*. Cut directly into the live visual proof at `0.0 s` of the sentence while William narrates over or below it.
+- **Duration Band (`44–62 s`) & Collectible Sheet Entry (`<= 56.0 s`):** Keep total runtime `<= 64 s` so the final collectible summary sheet (`#s9-sheet`) enters at **`<= 56.0 s`**—placing it at `75 s+` starves Instagram/TikTok Saves because `< 5 %` of cold viewers remain that late.
+
 ### Mandatory `4 Cameras × 5 Spatial Positions` Alternation Matrix
 Consecutive visual states **must change both optical camera angle (`Cam A..D`) and canvas layout (`Pos P1..P5`)**:
 - **`Cam A` (Frontal Executive):** Eye-level chest-up frontal shot (`nativeHairY ≈ 280–346 px`). Best for UI walkthroughs and closing CTA.
@@ -106,6 +112,9 @@ Validated in production (`3.85%` Story CTR record). To make giant text behind Wi
 - **Sacred Instagram Link Sticker Corridor (`?net=ig`):**
   - Keep **`y = 1255 px` to `y = 1415 px` (`160 px` vertical band) `100%` empty** (`#story-cap` stays above at `top: 1118 px`; `#igRow` stays below at `top: 1456 px`).
 - **TikTok / WhatsApp Variant (`?net=tt`):** Hides `#arw` and `#igCta`, showing `#ttCta` at `top: 1370 px` (*«Nuevo video · Míralo completo en el perfil»*).
+- **Mandatory 2-Story Launch Pair (`has_dual_story_pair`):**
+  - **Story 1 (`story_nuevo_video.html` — T+15 min):** Presenter Z-Depth authority hook + Link Sticker (`1255..1415 px`).
+  - **Story 2 (`story_<demo>.html` — T+4 to 6 hours):** `100 %` visual proof split/showcase of the video's strongest demo (e.g. 3D + interactive web) with clean `1255..1415 px` Link Sticker corridor to capture visual-first scrollers.
 
 ---
 

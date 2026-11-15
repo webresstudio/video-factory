@@ -20,18 +20,19 @@ Protocolo oficial para conectarse de forma **100 % automática** al Google Chrom
 
 1. **Nunca bloquees al usuario pidiendo `chrome://inspect/#remote-debugging` ni `DevToolsActivePort`.**
 2. En macOS, `WVF` se conecta directo a las pestañas autenticadas del Google Chrome abierto mediante AppleScript (`osascript`), exactamente igual que `flowjs.py` y `wajs.py`:
-   - **Auditoría completa de los 3 paneles (TikTok Studio + Meta Business Suite + Instagram):**
+   - **Auditoría completa de los 4 paneles (TikTok Studio + YouTube Studio + Meta Business Suite + Instagram, cero robo de foco):**
      ```bash
      wvf analytics --limit 6
+     wvf analytics --platform youtube --yt-video 2GH8Di_g8ZI --self-subs 1
      ```
    - **Auditoría filtrada o para un cliente/modelo específico (y persistencia de ventanas óptimas por red):**
      ```bash
      wvf analytics --model b2b_high_ticket --ig avalocorp --tiktok avalocorp --meta-asset 123456789 --save-windows
      wvf analytics --platform meta --model ecommerce_b2c --save-windows
      ```
-   - **Registro contable en el Ledger histórico (`WBRS Score 0–100`):**
+   - **Registro contable en el Ledger histórico (`WBRS Score 0–100` con ponderación justa sin castigar canales no medidos):**
      ```bash
-     wvf ledger record --project .
+     wvf ledger record --project . --exclude-self-follows 1
      wvf ledger compare
      ```
    - **Inspección puntual de cualquier pestaña abierta en Chrome:**
@@ -64,11 +65,12 @@ Cada carpeta de cliente dentro de `WBRS/ads/<Proyecto>/project_config.json` pued
 
 ---
 
-## 3. Siempre Consultar AMBOS Studios (Nunca solo la vista pública de Instagram)
+## 3. Siempre Consultar TODOS los Studios Activos (Cero Robo de Foco)
 
-- **Instagram Web (`instagram.com/<handle>/reel/...` → `Ver estadísticas`)** muestra vistas, `%` no seguidores, guardados, compartidos y si Meta colocó la etiqueta **`Contenido de IA`**, pero **NO muestra el tiempo promedio de reproducción**.
+- **Instagram Web (`instagram.com/<handle>/reel/...` → `Ver estadísticas`)** muestra vistas, `%` no seguidores, guardados, compartidos, si Meta colocó **`Contenido de IA`** y si el copy fue **`Editado` post-publicación** (`caption_edited_post_publish`, que resetea la exploración fría si ocurre en las primeras `48 h`).
 - **Meta Business Suite (`business.facebook.com/latest/insights/content`)** es el Studio donde viven **Watch time**, **Video average play time**, **3-second views**, clics en **Stories** y la separación entre Reels **Nativos de IG** vs. **Crossposted (IG+FB)**.
-- **TikTok Studio (`tiktok.com/tiktokstudio/analytics/<videoId>` y general)** entrega **Tiempo promedio de vista**, **`%` que vio el video completo**, el **minuto exacto de mayor abandono (`0:01` / `0:02`)**, tráfico por **Búsqueda**, demografía (**Edad / País**), **horario pico de espectadores** y **qué otros videos ve esa misma audiencia**.
+- **TikTok Studio (`tiktok.com/tiktokstudio/analytics/<videoId>` y general)** entrega **Tiempo promedio de vista**, **`%` que vio el video completo**, la **curva segundo a segundo** (vía React Fiber o barrido determinista de `<video>.currentTime`), **Reposts (`repostCount`)**, tráfico por **Búsqueda**, demografía (**Edad / País**) y **horario pico de espectadores**.
+- **YouTube Studio (`studio.youtube.com/video/<id>/analytics/...` con recorrido recursivo de Polymer Shadow DOM):** extrae en pestaña de segundo plano **`Visualizaciones`** (impresiones de feed), **`Visualizaciones interesadas`**, **`Duración media de las visualizaciones` (`0:24`)**, **`Se quedaron viendo` vs `Saltaron el contenido` (`%`)**, **`Búsqueda de YouTube` + términos exactos (`"gemini carbon 4"`)**, desglose por **`Ordenador` (Desktop B2B) vs `Teléfono móvil`**, y descuenta suscripciones propias de prueba (`--self-subs`).
 
 ---
 

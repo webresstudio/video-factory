@@ -645,5 +645,166 @@ class RegressionTests(unittest.TestCase):
         self.assertIn("ads/acme-2026-11-12", res_cmp.stdout)
         self.assertIn("75.3 / 100", res_cmp.stdout)
 
+    def test_youtube_studio_parser_ig_edit_penalty_and_fair_wbrs_score(self):
+        yt_ov = "\n".join([
+            "1:25", "Tu vídeo", "Gemini 4 Carbon vs Hydrogen: 2 pruebas reales",
+            "Visualizaciones", "716", "14 nov 2026, 19:37",
+            "Tiempo de visualización (horas)", "0,6",
+            "Suscriptores", "+1",
+            "Visualizaciones en 60 minutos", "33",
+            "7,0 %", "Se quedaron viendo", "93,0 %", "Saltaron el contenido",
+            "Me gusta", "Desde la publicación", "7",
+        ])
+        yt_rc = "\n".join([
+            "Cómo encontraron este Short los usuarios",
+            "Feed de Shorts", "95,0 %", "Búsqueda de YouTube", "3,5 %",
+            "Términos de búsqueda de YouTube", "Porcentaje de tráfico total", "3,5 %",
+            "gemini carbon 4", "24,0 %", "gemini carbon", "8,0 %",
+            "Listas de reproducción que incluyen este vídeo",
+        ])
+        yt_en = "\n".join([
+            "Visualizaciones interesadas", "56",
+            "Duración media de las visualizaciones", "0:24",
+        ])
+        yt_au = "\n".join([
+            "Tipo de dispositivo", "Teléfono móvil", "72,6 %", "Ordenador", "24,0 %", "Tablet", "2,8 %",
+        ])
+        parsed_yt = social_analytics.parse_youtube_studio_short_analytics(
+            "2GH8Di_g8ZI", yt_ov, yt_rc, yt_en, yt_au, self_subscribers=1
+        )
+        self.assertEqual(parsed_yt["views"], 716)
+        self.assertEqual(parsed_yt["engaged_views"], 56)
+        self.assertEqual(parsed_yt["average_view_duration_seconds"], 24.0)
+        self.assertEqual(parsed_yt["stayed_to_watch_percent"], 7.0)
+        self.assertEqual(parsed_yt["swiped_away_percent"], 93.0)
+        self.assertEqual(parsed_yt["search_traffic_percent"], 3.5)
+        self.assertEqual(parsed_yt["search_terms"]["gemini carbon 4"], 24.0)
+        self.assertEqual(parsed_yt["device_types"]["Ordenador"], 24.0)
+        self.assertEqual(parsed_yt["subscribers_raw"], 1)
+        self.assertEqual(parsed_yt["net_subscribers"], 0)
+
+        ig_edited = social_analytics.parse_instagram_reel_insights(
+            "https://www.instagram.com/webresstudio/reel/DfsQHWigYzd/",
+            "Visualizaciones\n44\nNo seguidores\n36.4%\nEspectadores\n31\nMe gusta\n4\nComentarios\n0\nVeces que se guardó\n0\nVeces que se compartió\n0\nActividad del perfil\n0",
+            {"title": "Gemini 4", "time": "2026-11-13", "aiLabel": False, "editedCaption": True},
+        )
+        self.assertTrue(ig_edited["caption_edited_post_publish"])
+        ev = social_analytics.evaluate_social_performance(
+            business_model="editorial_news",
+            tiktok_videos=[],
+            meta_items=[],
+            instagram_reels=[ig_edited],
+            youtube_shorts=[parsed_yt],
+        )
+        codes = {f["code"] for f in ev["findings"]}
+        self.assertIn("YOUTUBE_SHORTS_HIGH_SWIPE_RATE", codes)
+        self.assertIn("INSTAGRAM_POST_PUBLISH_EDIT_PENALTY", codes)
+        self.assertNotIn("LOW_SEARCH_SEO_TRAFFIC", codes)
+
+        # Fair WBRS Score when Meta ig_avg_watch_s & story_ctr_pct are None (unmeasured)
+        fair_sc = video_ledger.compute_wbrs_score({
+            "total_organic_views": 1258,
+            "qualified_engaged_views": 598,
+            "tt_avg_watch_s": 8.15,
+            "ig_avg_watch_s": None,
+            "yt_avg_watch_s": 24.0,
+            "yt_search_pct": 3.5,
+            "story_ctr_pct": None,
+            "total_saves": 2,
+            "total_comments": 2,
+            "total_shares_dms": 2,
+            "new_followers": 2,
+            "ig_non_followers_pct": 36.4,
+            "ig_clean_no_ai_badge": True,
+            "retention_vector": {"r_02s": 46.0, "r_03s": 39.0, "r_05s": 29.0, "r_15s": 19.0},
+        })
+        self.assertGreater(fair_sc["body_pts"], 25.0)
+        self.assertGreater(fair_sc["funnel_pts"], 8.0)
+
+    def test_flow_qc_phonetic_contagion_and_sweetspot_cold_open_and_multistory(self):
+        aliases = flow_qc.load_aliases(str(self.tmp))
+        self.assertEqual(flow_qc.normalize("Haidroyen y Orquestreitor", aliases), ["hydrogen", "y", "orchestrator"])
+
+        p = self.tmp / "contagion_proj"
+        (p / "prompts").mkdir(parents=True)
+        line_txt = "Pusimos a los dos a reconstruir el gran jaguar de Tikal en Blender con un solo prompt."
+        (p / "script.json").write_text(json.dumps([{"id": "L03", "text": line_txt}]))
+        prompt_txt = (
+            "[PROJ L03 R1] Use @Yo avatar likeness. Frontal Camera A eye level shot on chroma green. "
+            "Start speaking immediately with neutral GUATEMALAN Spanish accent, NO text on screen, 8 seconds, vertical 9:16. "
+            f"Exact dialogue: «{line_txt}»"
+        )
+        (p / "prompts/L03_r1.txt").write_text(prompt_txt)
+        lint_res = flow_qc.lint(str(p), "L03", str(p / "prompts/L03_r1.txt"))
+        self.assertEqual(lint_res["fails"], [])
+        self.assertTrue(any("gran yawar" in w for w in lint_res["warns"]))
+
+        # Sweetspot cold-open, narrative bridge, late sheet, and multi-story check
+        (p / "timing.js").write_text(json.dumps({
+            "duration": 84.8,
+            "lines": [
+                {"id": "L01", "t0": 0.0, "t1": 5.0, "cam": True},
+                {"id": "L02", "t0": 5.0, "t1": 10.0, "cam": True},
+                {"id": "L03", "t0": 10.0, "t1": 21.5, "cam": True},
+                {"id": "L04", "t0": 21.5, "t1": 29.4, "cam": False},
+                {"id": "L05", "t0": 29.4, "t1": 45.0, "cam": True},
+                {"id": "L06", "t0": 45.0, "t1": 75.5, "cam": False},
+                {"id": "L07", "t0": 75.5, "t1": 84.8, "cam": True},
+            ],
+        }))
+        (p / "timing.js").write_text("window.TIMING = " + (p / "timing.js").read_text() + ";")
+        (p / "index.html").write_text("<div id='s9-sheet'></div>")
+        (p / "story_nuevo_video.html").write_text("<div id='zback'>GEMINI</div><script>const net='ig';</script>")
+        (p / "story_tikal_tinta.html").write_text("<video></video><script>const net='tt';</script>")
+        man = audit_sweetspot.audit_project_sweetspot(str(p))
+        self.assertEqual(man["first_visual_proof_sec"], 21.5)
+        self.assertIn("L03", man["bridge_lines_detected"])
+        self.assertTrue(man["has_dual_story_pair"])
+        self.assertEqual(len(man["stories_audited"]), 2)
+        joined_w = " ".join(man["warnings"])
+        self.assertIn("Evidencia visual tardía", joined_w)
+        self.assertIn("Tomas puente", joined_w)
+        self.assertIn("coleccionable entra muy tarde", joined_w)
+
+    def test_multichannel_rollout_story_pair_and_script_bridge_warning(self):
+        proj = self.tmp / "rollout_proj"
+        (proj / "out/hq_masters").mkdir(parents=True)
+        (proj / "COPYS-REDES.md").write_text("# Copys\n")
+        (proj / "out/hq_masters/gemini4_Historia_Nuevo_Video_Instagram.mp4").write_bytes(b"00")
+        (proj / "out/hq_masters/gemini4_Historia_Tikal_Tinta_Instagram.mp4").write_bytes(b"00")
+
+        found_stories = share.discover_story_masters(proj)
+        self.assertEqual(len(found_stories), 2)
+
+        mc = social_analytics.evaluate_multichannel_deployment(
+            project_root=str(proj),
+            configuration={"youtube_video_id": "2GH8Di_g8ZI"},
+            tiktok_data={"videos": [{"video_id": "1"}]},
+            instagram_data={"reels": [{"shortcode": "abc"}]},
+            youtube_data={"shorts": [{"video_id": "2GH8Di_g8ZI"}]},
+        )
+        self.assertEqual(mc["published_channels"], ["tiktok", "instagram", "youtube_shorts"])
+        self.assertEqual(mc["missing_channels"], ["linkedin"])
+        self.assertFalse(mc["is_full_4channel_rollout"])
+
+        spec = importlib.util.spec_from_file_location(
+            "audit_listicle",
+            ROOT / "skills/viral-listicle-story/scripts/audit_listicle.py",
+        )
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        rep = mod.audit_script(
+            {
+                "takes": [
+                    {"id": "L01", "spoken": "Tu empresa pierde 80% de clientes cada día. Mira esto.", "screen_text": "DATO CLAVE"},
+                    {"id": "L02", "spoken": "Pusimos a los dos a reconstruir el templo en Blender para comparar.", "screen_text": "PRUEBA 1"},
+                    {"id": "L03", "spoken": "Uno tardó 14 segundos exactos. Puro humo en el otro.", "screen_text": "14 SEGUNDOS"},
+                    {"id": "L04", "spoken": "Escribe clientes hoy y corrige tu empresa ahora mismo.", "screen_text": "MAPA FINAL"},
+                ]
+            },
+            lang="es",
+        )
+        self.assertTrue(any("L02 pre-announces a demo/test" in w for w in rep["warnings"]))
+
 
 if __name__=='__main__':unittest.main()

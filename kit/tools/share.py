@@ -61,10 +61,24 @@ def compress(master, output, max_mb=15):
     return output.stat().st_size
 
 
+def discover_story_masters(root: Path):
+    """Discover rendered Story MP4s (Story 1 presenter + Story 2 pure visual proof) in out/hq_masters or root."""
+    candidates = []
+    seen = set()
+    for pattern in ('out/hq_masters/*Historia*.mp4', 'out/hq_masters/story_*.mp4', 'story_*.mp4'):
+        for path in sorted(root.glob(pattern)):
+            resolved = path.resolve()
+            if resolved not in seen and path.is_file():
+                seen.add(resolved)
+                candidates.append(path)
+    return candidates
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--master'); ap.add_argument('--out')
     ap.add_argument('--max-mb', type=float, default=15)
+    ap.add_argument('--include-stories', action='store_true', help='Comprimir también el par oficial de Stories hacia share/')
     ap.add_argument('--send-wa', action='store_true')
     ap.add_argument('--contact', default='William Romero')
     args = ap.parse_args(argv)
@@ -80,6 +94,17 @@ def main(argv=None):
     try:
         size = compress(master, output, args.max_mb)
         print(f'✅ Versión móvil: {output} ({size / 1024**2:.2f} MB)')
+        if args.include_stories:
+            story_masters = discover_story_masters(root)
+            story_htmls = sorted(p.name for p in root.glob('story_*.html'))
+            if len(story_htmls) < 2:
+                print(f'⚠️ Par oficial de Stories incompleto ({len(story_htmls)}/2 HTML): se recomienda Story 1 (Presentador Z-Depth) + Story 2 (Evidencia visual pura).')
+            for st_master in story_masters:
+                st_out = root / 'share' / st_master.name
+                if st_master.resolve() == st_out.resolve():
+                    continue
+                st_size = compress(st_master, st_out, args.max_mb)
+                print(f'✅ Story móvil: {st_out} ({st_size / 1024**2:.2f} MB)')
         if args.send_wa:
             from wajs import send_file
             send_file(output, args.contact)

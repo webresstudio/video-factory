@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """Multi-platform & multi-business-model social video analytics auditor for WBRS / WVF.
 
-Connects automatically to Google Chrome via AppleScript (chromejs.py) with zero
-manual remote-debugging setup, extracts video performance metrics from:
-  1. TikTok Studio (account overview + per-video retention & audience demographics)
-  2. Meta Business Suite Content Insights (Watch time, Video average play time, 3s views, Stories)
-  3. Instagram Web Reels Insights (Reach/Viewers, Non-followers %, Saves, Shares, AI label)
+Connects automatically to Google Chrome via AppleScript/JXA (chromejs.py) with zero
+manual remote-debugging setup and zero focus-stealing, extracting video metrics from:
+  1. TikTok Studio (account overview + second-by-second <video> scrub retention + reposts + demographics)
+  2. YouTube Studio (Polymer Shadow-DOM Shorts analytics: Views, Engaged views, Avg duration,
+     Stayed vs. Swiped %, YouTube Search terms, Device split Desktop/Mobile, Net Subscribers)
+  3. Meta Business Suite Content Insights (Watch time, Video average play time, 3s views, Stories)
+  4. Instagram Web Reels Insights (Reach/Viewers, Non-followers %, Saves, Shares, AI label,
+     and post-publish caption edit penalty detection)
 
 Evaluates performance against industry-specific benchmarks configured per client/project.
 """
@@ -31,7 +34,7 @@ BUSINESS_MODEL_PROFILES = {
         "target_full_watch_percent": 12.0,
         "max_youth_18_24_percent": 35.0,
         "primary_kpis": [
-            "Edad calificada 25-54 años (>70%)",
+            "Edad calificada 25-54 años (>70%) y tráfico Desktop en YouTube (>12%)",
             "Envíos por DM a socios o tomadores de decisión",
             "Guardados y clics a WhatsApp / enlace en bio o Stories",
             "Tiempo promedio >= 14s sin pauta juvenil contaminada",
@@ -47,7 +50,7 @@ BUSINESS_MODEL_PROFILES = {
         "primary_kpis": [
             "Tiempo promedio >= 15s mostrando dolor (0-4s) y demo 2.5x antes del 5s",
             "Guardados de tarjeta resumen coleccionable",
-            "Tráfico por Búsqueda SEO (>5%)",
+            "Tráfico por Búsqueda SEO (>3% en TikTok / YouTube Shorts)",
             "Clics a prueba o demo en perfil / Stories",
         ],
     },
@@ -68,15 +71,15 @@ BUSINESS_MODEL_PROFILES = {
     "editorial_news": {
         "label": "Noticias / Autoridad Editorial y Marca Personal",
         "examples": "Las Noticias Tech, medios especializados, opinión y actualidad",
-        "recommended_duration_seconds": (25, 38),
+        "recommended_duration_seconds": (25, 58),
         "target_average_watch_seconds": 14.0,
         "target_full_watch_percent": 18.0,
         "max_youth_18_24_percent": 50.0,
         "primary_kpis": [
-            "Alcance en No seguidores (>= 70%)",
-            "1 sola noticia por video corto sin cortinilla inicial",
-            "Porcentaje que vio el video completo (>= 18%)",
-            "Compartidos, debate en comentarios y seguidores nuevos",
+            "Alcance en No seguidores (>= 70%) y Se quedaron viendo en Shorts (>= 50%)",
+            "Cold-open con evidencia real en 0.0–1.4s (cortina solo al final)",
+            "Porcentaje que vio el video completo (>= 18%) o >= 18s promedio en Shorts",
+            "Compartidos/Reposts, Búsqueda SEO (>2%) y seguidores nuevos netos",
         ],
     },
     "education_creator": {
@@ -99,7 +102,12 @@ BUSINESS_MODEL_PROFILES = {
 def parse_compact_number(raw_value: str) -> int:
     if not raw_value:
         return 0
-    cleaned = raw_value.strip().replace(",", "")
+    cleaned = raw_value.replace("\xa0", " ").strip()
+    # Strip thousands separators (e.g. 9,457 -> 9457), preserve decimal compact suffixes (9.5K / 9,5K)
+    if re.search(r"\d,\d{3}\b", cleaned):
+        cleaned = cleaned.replace(",", "")
+    else:
+        cleaned = cleaned.replace(",", ".")
     multiplier = 1
     if cleaned.upper().endswith("K"):
         multiplier = 1_000
@@ -116,27 +124,33 @@ def parse_compact_number(raw_value: str) -> int:
 def parse_seconds_value(raw_value: str) -> float:
     if not raw_value:
         return 0.0
-    cleaned = raw_value.strip().lower()
-    minutes_seconds_match = re.search(r"(?:(\d+)h:?)?(?:(\d+)m\s*)?(\d+(?:\.\d+)?)s", cleaned)
+    cleaned = raw_value.replace("\xa0", " ").strip().lower()
+    colon_match = re.fullmatch(r"(?:(\d+):)?(\d{1,2}):(\d{2})", cleaned)
+    if colon_match:
+        h = int(colon_match.group(1) or 0)
+        m = int(colon_match.group(2) or 0)
+        s = int(colon_match.group(3) or 0)
+        return round(h * 3600 + m * 60 + s, 2)
+    minutes_seconds_match = re.search(r"(?:(\d+)h:?)?(?:(\d+)m\s*)?(\d+(?:[.,]\d+)?)s", cleaned)
     if minutes_seconds_match and ("m" in cleaned or "h" in cleaned):
         hours = int(minutes_seconds_match.group(1) or 0)
         minutes = int(minutes_seconds_match.group(2) or 0)
-        seconds = float(minutes_seconds_match.group(3) or 0.0)
+        seconds = float((minutes_seconds_match.group(3) or "0").replace(",", "."))
         return round(hours * 3600 + minutes * 60 + seconds, 2)
-    simple_seconds_match = re.search(r"(\d+(?:\.\d+)?)\s*s", cleaned)
+    simple_seconds_match = re.search(r"(\d+(?:[.,]\d+)?)\s*s", cleaned)
     if simple_seconds_match:
-        return round(float(simple_seconds_match.group(1)), 2)
+        return round(float(simple_seconds_match.group(1).replace(",", ".")), 2)
     return 0.0
 
 
 def parse_percentage_value(raw_value: str) -> float:
     if not raw_value:
         return 0.0
-    cleaned = raw_value.strip()
+    cleaned = raw_value.replace("\xa0", " ").strip()
     if cleaned.startswith("<"):
         return 0.05
-    match = re.search(r"(\d+(?:\.\d+)?)\s*%", cleaned)
-    return round(float(match.group(1)), 2) if match else 0.0
+    match = re.search(r"(\d+(?:[.,]\d+)?)\s*%", cleaned)
+    return round(float(match.group(1).replace(",", ".")), 2) if match else 0.0
 
 
 def load_social_configuration(project_root: str, cli_overrides: dict | None = None) -> dict:
@@ -146,6 +160,7 @@ def load_social_configuration(project_root: str, cli_overrides: dict | None = No
         "business_model": "saas_product",
         "instagram_handle": "",
         "tiktok_handle": "",
+        "youtube_video_id": "",
         "meta_asset_id": "",
         "meta_business_id": "",
     }
@@ -160,6 +175,7 @@ def load_social_configuration(project_root: str, cli_overrides: dict | None = No
                 "business_model",
                 "instagram_handle",
                 "tiktok_handle",
+                "youtube_video_id",
                 "meta_asset_id",
                 "meta_business_id",
             ):
@@ -195,11 +211,10 @@ def build_meta_insights_url(social_configuration: dict) -> str:
 
 
 def parse_hour_float(raw_value: str) -> float | None:
-    """Parse local publish/activity hour (0.0..23.99) from Meta, TikTok, or ISO-8601 strings."""
+    """Parse local publish/activity hour (0.0..23.99) from Meta, TikTok, YouTube Studio, or ISO-8601 strings."""
     if not raw_value:
         return None
     text = raw_value.strip()
-    # ISO-8601 datetime e.g. 2026-11-10T18:35:00.000Z
     iso_match = re.match(r"^\d{4}-\d{2}-\d{2}T(\d{2}):(\d{2})", text)
     if iso_match:
         try:
@@ -212,7 +227,6 @@ def parse_hour_float(raw_value: str) -> float | None:
         except ValueError:
             pass
 
-    # 12-hour format e.g. "7:00am", "12:35pm", "1pm y las 2pm", "8 p. m."
     ampm_match = re.search(
         r"\b(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*(a\.?\s*m\.?|p\.?\s*m\.?)\b",
         text,
@@ -228,7 +242,6 @@ def parse_hour_float(raw_value: str) -> float | None:
             hour = 0
         return round(hour + minute / 60.0, 2)
 
-    # 24-hour format e.g. "14:30" or "08:15" (avoiding mm:ss video durations like 0:02)
     h24_match = re.search(r"(?:,\s*|\s+)([01]?\d|2[0-3]):([0-5]\d)\b", " " + text)
     if h24_match and "minuto" not in text.lower():
         return round(int(h24_match.group(1)) + int(h24_match.group(2)) / 60.0, 2)
@@ -255,6 +268,8 @@ def parse_tiktok_video_analytics(
     audience_text: str = "",
     caption_hint: str = "",
     retention_curve_pct: list[float] | None = None,
+    retention_curve_points: list[dict] | None = None,
+    reposts: int = 0,
 ) -> dict:
     lines = [line.strip() for line in (summary_text or "").splitlines() if line.strip()]
     published_date = ""
@@ -333,6 +348,7 @@ def parse_tiktok_video_analytics(
         "likes": top_counters["likes"],
         "comments": top_counters["comments"],
         "shares": top_counters["shares"],
+        "reposts": int(reposts or 0),
         "saves": top_counters["saves"],
         "average_watch_seconds": average_watch_seconds,
         "watched_full_percent": watched_full_percent,
@@ -344,6 +360,8 @@ def parse_tiktok_video_analytics(
     }
     if retention_curve_pct:
         parsed_video["retention_curve_pct"] = [round(float(x), 1) for x in retention_curve_pct]
+    if retention_curve_points:
+        parsed_video["retention_curve_points"] = retention_curve_points
     return parsed_video
 
 
@@ -365,6 +383,166 @@ def parse_tiktok_account_overview(overview_text: str, viewers_text: str = "") ->
         "account_search_traffic_percent": search_percent,
         "peak_activity_window": peak_window_str,
         "peak_activity_start_hour": parse_hour_float(peak_window_str),
+    }
+
+
+def parse_youtube_studio_short_analytics(
+    video_id: str,
+    overview_text: str = "",
+    reach_text: str = "",
+    engagement_text: str = "",
+    audience_text: str = "",
+    self_subscribers: int = 0,
+) -> dict:
+    """Parse YouTube Studio Shadow-DOM text dumps (hub_overview, reach, engagement, audience)."""
+    def clean_lines(blob: str) -> list[str]:
+        return [ln.replace("\xa0", " ").strip() for ln in (blob or "").splitlines() if ln.strip()]
+
+    ov_lines = clean_lines(overview_text)
+    rc_lines = clean_lines(reach_text)
+    en_lines = clean_lines(engagement_text)
+    au_lines = clean_lines(audience_text)
+    merged = ov_lines + rc_lines + en_lines + au_lines
+
+    title = ""
+    duration_raw = ""
+    for idx, ln in enumerate(merged[:-1]):
+        if ln in ("Tu vídeo", "Tu video", "Your video") and idx + 1 < len(merged):
+            title = merged[idx + 1]
+            if idx >= 1 and re.fullmatch(r"\d+:\d{2}", merged[idx - 1]):
+                duration_raw = merged[idx - 1]
+            break
+
+    views = 0
+    published_at = ""
+    for idx, ln in enumerate(merged[:-1]):
+        if ln in ("Visualizaciones", "Views") and re.match(r"^[\d.,KMkm]+$", merged[idx + 1]):
+            views = parse_compact_number(merged[idx + 1])
+            if idx + 2 < len(merged) and re.search(r"\d{4}", merged[idx + 2]):
+                published_at = merged[idx + 2]
+            break
+
+    watch_hours = 0.0
+    for idx, ln in enumerate(ov_lines[:-1]):
+        if ln in ("Tiempo de visualización (horas)", "Watch time (hours)"):
+            m_hr = re.search(r"\d+(?:[.,]\d+)?", ov_lines[idx + 1])
+            if m_hr:
+                watch_hours = round(float(m_hr.group(0).replace(",", ".")), 2)
+            break
+
+    raw_subs = 0
+    for idx, ln in enumerate(merged[:-1]):
+        if ln in ("Suscriptores", "Subscribers") and re.match(r"^[+-]?\d+", merged[idx + 1]):
+            raw_subs = parse_compact_number(merged[idx + 1])
+            break
+
+    realtime_60m = 0
+    for idx, ln in enumerate(ov_lines[:-1]):
+        if ln in ("Visualizaciones en 60 minutos", "Views · 60 minutes"):
+            realtime_60m = parse_compact_number(ov_lines[idx + 1])
+            break
+
+    likes = 0
+    for idx, ln in enumerate(ov_lines[:-1]):
+        if ln in ("Me gusta", "Likes"):
+            for probe in ov_lines[idx + 1 : idx + 4]:
+                if re.fullmatch(r"[\d.,KMkm]+", probe):
+                    likes = parse_compact_number(probe)
+                    break
+            if likes:
+                break
+
+    engaged_views = 0
+    avg_duration_s = 0.0
+    for idx, ln in enumerate(en_lines[:-1]):
+        if ln in ("Visualizaciones interesadas", "Engaged views") and not engaged_views and re.match(r"^[\d.,KMkm]+$", en_lines[idx + 1]):
+            engaged_views = parse_compact_number(en_lines[idx + 1])
+        elif ln in ("Duración media de las visualizaciones", "Average view duration") and not avg_duration_s:
+            cand_s = parse_seconds_value(en_lines[idx + 1])
+            if cand_s > 0:
+                avg_duration_s = cand_s
+
+    stayed_pct = 0.0
+    swiped_pct = 0.0
+    for idx, ln in enumerate(merged):
+        if ln in ("Se quedaron viendo", "Viewed") and idx >= 1 and "%" in merged[idx - 1]:
+            stayed_pct = parse_percentage_value(merged[idx - 1])
+        elif ln in ("Saltaron el contenido", "Swiped away") and idx >= 1 and "%" in merged[idx - 1]:
+            swiped_pct = parse_percentage_value(merged[idx - 1])
+
+    traffic_sources: dict[str, float] = {}
+    known_yt_sources = (
+        "Feed de Shorts",
+        "Shorts feed",
+        "Búsqueda de YouTube",
+        "YouTube search",
+        "Otras funciones de YouTube",
+        "Páginas de canal",
+        "Channel pages",
+        "Externa",
+        "External",
+        "Videos sugeridos",
+        "Otros",
+    )
+    source_scope = rc_lines or ov_lines
+    for idx, ln in enumerate(source_scope[:-1]):
+        if ln in known_yt_sources and "%" in source_scope[idx + 1]:
+            traffic_sources[ln] = parse_percentage_value(source_scope[idx + 1])
+
+    search_terms: dict[str, float] = {}
+    search_total_pct = traffic_sources.get("Búsqueda de YouTube", traffic_sources.get("YouTube search", 0.0))
+    for idx, ln in enumerate(rc_lines):
+        if ln in ("Términos de búsqueda de YouTube", "YouTube search terms"):
+            cursor = idx + 1
+            while cursor + 1 < len(rc_lines):
+                key = rc_lines[cursor]
+                val = rc_lines[cursor + 1]
+                if key.startswith("Listas de reproducción") or key.startswith("Contenido donde"):
+                    break
+                if key in ("Porcentaje de tráfico total", "Percentage of total traffic") and "%" in val:
+                    search_total_pct = parse_percentage_value(val)
+                    cursor += 2
+                    continue
+                if "%" in val and not key.startswith("‎"):
+                    search_terms[key] = parse_percentage_value(val)
+                    cursor += 2
+                else:
+                    cursor += 1
+            break
+
+    device_types: dict[str, float] = {}
+    for idx, ln in enumerate(au_lines[:-1]):
+        if ln in ("Teléfono móvil", "Mobile phone", "Ordenador", "Computer", "Tablet", "Televisión", "TV"):
+            if "%" in au_lines[idx + 1]:
+                device_types[ln] = parse_percentage_value(au_lines[idx + 1])
+
+    self_excl = max(0, int(self_subscribers or 0))
+    net_subs = max(0, raw_subs - self_excl) if raw_subs > 0 else raw_subs
+
+    return {
+        "video_id": video_id,
+        "url": f"https://www.youtube.com/shorts/{video_id}",
+        "studio_url": f"https://studio.youtube.com/video/{video_id}/analytics/hub_overview",
+        "title": title[:180],
+        "duration_raw": duration_raw,
+        "duration_seconds": parse_seconds_value(duration_raw),
+        "published_at": published_at,
+        "published_hour": parse_hour_float(published_at),
+        "views": views,
+        "engaged_views": engaged_views,
+        "realtime_views_60m": realtime_60m,
+        "watch_time_hours": watch_hours,
+        "average_view_duration_seconds": avg_duration_s,
+        "stayed_to_watch_percent": stayed_pct,
+        "swiped_away_percent": swiped_pct,
+        "likes": likes,
+        "subscribers_raw": raw_subs,
+        "self_subscribers_excluded": self_excl,
+        "net_subscribers": net_subs,
+        "search_traffic_percent": search_total_pct,
+        "traffic_sources": traffic_sources,
+        "search_terms": search_terms,
+        "device_types": device_types,
     }
 
 
@@ -444,6 +622,7 @@ def parse_instagram_reel_insights(reel_url: str, insights_text: str, metadata: d
         "title": str(metadata.get("title", "")).strip()[:180],
         "published_at": str(metadata.get("time", "")).strip(),
         "has_ai_content_label": bool(metadata.get("aiLabel", False)),
+        "caption_edited_post_publish": bool(metadata.get("editedCaption", False)),
         "views": parse_compact_number(metric_after("Visualizaciones")),
         "unique_viewers": parse_compact_number(metric_after("Espectadores")),
         "non_followers_percent": parse_percentage_value(metric_after("No seguidores")),
@@ -461,12 +640,14 @@ def evaluate_social_performance(
     meta_items: list[dict],
     instagram_reels: list[dict],
     tiktok_overview: dict | None = None,
+    youtube_shorts: list[dict] | None = None,
 ) -> dict:
     if business_model not in BUSINESS_MODEL_PROFILES:
         raise ValueError(f"Modelo de negocio inválido: {business_model}")
 
     profile = BUSINESS_MODEL_PROFILES[business_model]
     tiktok_overview = tiktok_overview or {}
+    youtube_shorts = youtube_shorts or []
     findings = []
 
     # 1. Early 0:01-0:02 hook drop-off check
@@ -482,11 +663,33 @@ def evaluate_social_performance(
                 "severity": "critical",
                 "summary": (
                     f"{len(early_dropoff_videos)}/{len(tiktok_videos)} videos en TikTok Studio pierden "
-                    f"a la mayoría de espectadores en 0:01–0:02. Eliminar cortinillas iniciales (0.0s) y "
-                    f"mostrar evidencia/acción real antes del segundo 4.5."
+                    f"a la mayoría de espectadores en 0:01–0:02. Abrir 0.0–1.4s con prueba visual real "
+                    f"antes o detrás del presentador y eliminar cortinillas iniciales."
                 ),
             }
         )
+
+    # 1b. YouTube Shorts Stayed vs Swiped diagnostic
+    for yt in youtube_shorts:
+        stayed = float(yt.get("stayed_to_watch_percent", 0.0) or 0.0)
+        swiped = float(yt.get("swiped_away_percent", 0.0) or 0.0)
+        yt_avg = float(yt.get("average_view_duration_seconds", 0.0) or 0.0)
+        if yt.get("views", 0) >= 50 and 0.0 < stayed < 45.0:
+            body_note = (
+                f" Quienes sí se quedan miran {yt_avg:.0f}s en promedio (el cuerpo funciona excelente; el cuello de botella es 100% visual en 0.0–1.5s)."
+                if yt_avg >= 14.0
+                else ""
+            )
+            findings.append(
+                {
+                    "code": "YOUTUBE_SHORTS_HIGH_SWIPE_RATE",
+                    "severity": "critical" if stayed < 25.0 else "high",
+                    "summary": (
+                        f"YouTube Short {yt.get('video_id')} registra {stayed:.1f}% 'Se quedaron viendo' vs {swiped:.1f}% "
+                        f"'Saltaron el contenido' sobre {yt.get('views')} vistas (meta Shorts: >=55%).{body_note}"
+                    ),
+                }
+            )
 
     # 2. Average watch time & completion rate vs business model target
     if tiktok_videos:
@@ -545,7 +748,7 @@ def evaluate_social_performance(
             }
         )
 
-    # 5. Saves & DM Shares check on Instagram
+    # 5. Saves, DM Shares, AI label & Post-Publish Edit Penalty check on Instagram
     if instagram_reels:
         total_saves = sum(reel.get("saves", 0) for reel in instagram_reels)
         total_shares = sum(reel.get("shares", 0) for reel in instagram_reels)
@@ -556,7 +759,7 @@ def evaluate_social_performance(
                     "severity": "high",
                     "summary": (
                         "0 Guardados y 0 Compartidos por DM en los Reels auditados de Instagram. "
-                        "No revelar toda la lista en el copy y asomar la tarjeta resumen en los primeros 4s."
+                        "No revelar toda la lista en el copy y mostrar la tarjeta resumen antes del segundo 56."
                     ),
                 }
             )
@@ -572,16 +775,37 @@ def evaluate_social_performance(
                     ),
                 }
             )
+        edited_low_reach = [
+            reel
+            for reel in instagram_reels
+            if reel.get("caption_edited_post_publish") and float(reel.get("non_followers_percent", 100.0)) < 50.0
+        ]
+        if edited_low_reach:
+            findings.append(
+                {
+                    "code": "INSTAGRAM_POST_PUBLISH_EDIT_PENALTY",
+                    "severity": "high",
+                    "summary": (
+                        f"{len(edited_low_reach)} Reel(s) muestran copy 'Editado' post-publicación y <50% alcance en No seguidores "
+                        f"({edited_low_reach[0].get('non_followers_percent')}%). Prohibido editar copy/etiquetas durante las primeras 48h."
+                    ),
+                }
+            )
 
-    # 6. Search SEO check in TikTok
-    account_search_pct = tiktok_overview.get("account_search_traffic_percent", 0.0)
-    if tiktok_videos and account_search_pct < 1.0:
+    # 6. Search SEO check across TikTok & YouTube Shorts
+    video_max_search = max(
+        [float(v.get("traffic_sources", {}).get("Buscar", 0.0)) for v in tiktok_videos]
+        + [float(y.get("search_traffic_percent", 0.0)) for y in youtube_shorts]
+        + [0.0]
+    )
+    account_search_pct = max(float(tiktok_overview.get("account_search_traffic_percent", 0.0)), video_max_search)
+    if (tiktok_videos or youtube_shorts) and account_search_pct < 1.0:
         findings.append(
             {
                 "code": "LOW_SEARCH_SEO_TRAFFIC",
                 "severity": "medium",
                 "summary": (
-                    f"Tráfico por Búsqueda en TikTok es {account_search_pct}% (<1%). "
+                    f"Tráfico por Búsqueda es {account_search_pct}% (<1%). "
                     f"Alinear primera oración hablada, titular en pantalla (0-3s) y Línea 1 del copy con consultas naturales."
                 ),
             }
@@ -626,17 +850,15 @@ def discover_brand_publish_windows(
     instagram_reels: list[dict] | None = None,
     tiktok_overview: dict | None = None,
     audience_activity: dict | None = None,
+    youtube_shorts: list[dict] | None = None,
 ) -> dict:
-    """Calculate SEPARATE optimal publish windows for Facebook, Instagram, and TikTok per brand.
-
-    Never hardcodes a universal hour across brands or across networks: combines each network's
-    audience active-hour peak (when available) with that brand's empirical post velocity per hour.
-    """
+    """Calculate SEPARATE optimal publish windows for Facebook, Instagram, TikTok, and YouTube Shorts per brand."""
     tiktok_videos = tiktok_videos or []
     meta_items = meta_items or []
     instagram_reels = instagram_reels or []
     tiktok_overview = tiktok_overview or {}
     audience_activity = audience_activity or {}
+    youtube_shorts = youtube_shorts or []
     brand_name = social_configuration.get("client_name", "Marca")
 
     def resolve_network_window(
@@ -647,7 +869,6 @@ def discover_brand_publish_windows(
         low_conf_fallback: bool = False,
     ) -> dict:
         if audience_peak_hour is not None and hist_best_hour is not None:
-            # Circular blend on 24h clock: 55% audience active peak, 45% best empirical post hour (+0.5h peak offset)
             import math
             a1 = audience_peak_hour * 2.0 * math.pi / 24.0
             a2 = ((hist_best_hour + 0.5) % 24.0) * 2.0 * math.pi / 24.0
@@ -705,7 +926,7 @@ def discover_brand_publish_windows(
             ),
         }
 
-    # 1. TikTok window (specific to this brand's TikTok Studio)
+    # 1. TikTok window
     tt_aud_peak = audience_activity.get("tiktok_peak_hour")
     if tt_aud_peak is None:
         tt_aud_peak = tiktok_overview.get("peak_activity_start_hour")
@@ -715,11 +936,11 @@ def discover_brand_publish_windows(
         tiktok_videos,
         lambda v: max(v.get("views", 1), 1)
         * max(v.get("average_watch_seconds", 2.0), 1.0)
-        * (1.0 + 0.30 * v.get("saves", 0) + 0.35 * v.get("shares", 0)),
+        * (1.0 + 0.30 * v.get("saves", 0) + 0.35 * (v.get("shares", 0) + v.get("reposts", 0))),
     )
     tt_win = resolve_network_window("TikTok", tt_aud_peak, tt_hist_hour, tt_n)
 
-    # 2. Instagram window (strictly native IG reels/posts from Meta + IG Insights, excluding crossposts)
+    # 2. Instagram window
     ig_aud_peak = audience_activity.get("instagram_peak_hour")
     if isinstance(ig_aud_peak, str):
         ig_aud_peak = parse_hour_float(ig_aud_peak)
@@ -747,7 +968,7 @@ def discover_brand_publish_windows(
     )
     ig_win = resolve_network_window("Instagram", ig_aud_peak, ig_hist_hour, ig_n)
 
-    # 3. Facebook window (native Facebook Page reels/videos in Meta Business Suite)
+    # 3. Facebook window
     fb_aud_peak = audience_activity.get("facebook_peak_hour")
     if isinstance(fb_aud_peak, str):
         fb_aud_peak = parse_hour_float(fb_aud_peak)
@@ -768,12 +989,20 @@ def discover_brand_publish_windows(
     )
     fb_win = resolve_network_window("Facebook", fb_aud_peak, fb_hist_hour, fb_n, low_conf_fallback=fb_used_fallback)
 
-    return {
+    result = {
         "brand": brand_name,
         "tiktok": tt_win,
         "instagram": ig_win,
         "facebook": fb_win,
     }
+    if youtube_shorts:
+        yt_aud_peak = audience_activity.get("youtube_peak_hour")
+        yt_hist_hour, yt_n = _best_publish_hour_from_posts(
+            youtube_shorts,
+            lambda y: max(y.get("views", 1), 1) * max(y.get("average_view_duration_seconds", 4.0), 1.0),
+        )
+        result["youtube"] = resolve_network_window("YouTube Shorts", yt_aud_peak, yt_hist_hour, yt_n)
+    return result
 
 
 EXTRACT_TIKTOK_RETENTION_FIBER_JS = """
@@ -803,9 +1032,86 @@ EXTRACT_TIKTOK_RETENTION_FIBER_JS = """
 })()
 """
 
+SHADOW_DOM_TEXT_JS = """
+(() => {
+  function collectText(root, out, depth) {
+    if (!root || depth > 25) return;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
+    let node = walker.currentNode;
+    while (node) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const t = (node.nodeValue || '').replace(/\\s+/g, ' ').trim();
+        if (t) out.push(t);
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        if (node.tagName === 'STYLE' || node.tagName === 'SCRIPT' || node.tagName === 'NOSCRIPT') {
+          node = walker.nextSibling() || walker.nextNode();
+          continue;
+        }
+        if (node.shadowRoot) {
+          collectText(node.shadowRoot, out, depth + 1);
+        }
+      }
+      node = walker.nextNode();
+    }
+  }
+  window.scrollTo(0, 900);
+  const lines = [];
+  collectText(document.body, lines, 0);
+  const clean = [];
+  for (const s of lines) {
+    if (clean[clean.length - 1] !== s) clean.push(s);
+  }
+  return clean.join('\\n').slice(0, 14000);
+})()
+"""
+
+
+def _scrub_tiktok_video_retention_curve(url_match: str = "tiktok.com") -> list[dict]:
+    """Fallback when React Fiber hides chart series: scrub <video>.currentTime and read live 0:XX (YY%)."""
+    dur_raw = chromejs.execute_javascript(
+        "(() => { const v = document.querySelector('video'); return v && v.duration ? String(v.duration) : '0'; })()",
+        url_match=url_match,
+    )
+    try:
+        dur = float(dur_raw or 0.0)
+    except ValueError:
+        dur = 0.0
+    if dur <= 1.0:
+        return []
+    sample_secs = sorted(
+        {
+            s
+            for s in [0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, int(dur) - 1]
+            if 0 <= s < dur
+        }
+    )
+    points: list[dict] = []
+    for sec in sample_secs:
+        raw_pt = chromejs.execute_javascript(
+            f"""(() => {{
+              const v = document.querySelector('video');
+              if (!v) return '';
+              v.pause();
+              v.currentTime = {sec};
+              v.dispatchEvent(new Event('timeupdate'));
+              const m = document.body.innerText.match(/(\\d+):(\\d{{2}})\\s*\\((\\d+)%\\)/);
+              return m ? JSON.stringify({{t: parseInt(m[1], 10) * 60 + parseInt(m[2], 10), pct: parseFloat(m[3])}}) : '';
+            }})()""",
+            url_match=url_match,
+        )
+        if raw_pt:
+            try:
+                pt = json.loads(raw_pt)
+                if not points or points[-1]["t"] != pt["t"]:
+                    points.append(pt)
+            except ValueError:
+                pass
+        time.sleep(0.08)
+    return points
+
 
 def collect_tiktok_studio_live(social_configuration: dict, limit: int) -> dict:
-    chromejs.navigate_tab("https://www.tiktok.com/tiktokstudio/content", url_match="tiktok.com")
+    chromejs.navigate_tab("https://www.tiktok.com/tiktokstudio/content", url_match="tiktok.com", background=True)
     time.sleep(5.0)
     content_js = """
     (() => {
@@ -849,6 +1155,7 @@ def collect_tiktok_studio_live(social_configuration: dict, limit: int) -> dict:
         chromejs.navigate_tab(
             f"https://www.tiktok.com/tiktokstudio/analytics/{video_id}",
             url_match="tiktok.com",
+            background=True,
         )
         time.sleep(3.8)
         summary_text = chromejs.execute_javascript(
@@ -860,6 +1167,12 @@ def collect_tiktok_studio_live(social_configuration: dict, limit: int) -> dict:
             retention_curve = json.loads(raw_curve) if raw_curve else []
         except ValueError:
             retention_curve = []
+        curve_points = []
+        if not retention_curve:
+            curve_points = _scrub_tiktok_video_retention_curve(url_match="tiktok.com")
+            if curve_points:
+                retention_curve = [p["pct"] for p in curve_points]
+
         chromejs.execute_javascript(
             """(() => {
               const tab = Array.from(document.querySelectorAll('div, span, button, a'))
@@ -878,10 +1191,11 @@ def collect_tiktok_studio_live(social_configuration: dict, limit: int) -> dict:
                 audience_text=audience_text,
                 caption_hint=caption_preview,
                 retention_curve_pct=retention_curve,
+                retention_curve_points=curve_points,
             )
         )
 
-    chromejs.navigate_tab("https://www.tiktok.com/tiktokstudio/analytics", url_match="tiktok.com")
+    chromejs.navigate_tab("https://www.tiktok.com/tiktokstudio/analytics", url_match="tiktok.com", background=True)
     time.sleep(3.5)
     overview_text = chromejs.execute_javascript("(() => document.body.innerText)()", url_match="tiktok.com")
     chromejs.execute_javascript(
@@ -905,9 +1219,106 @@ def collect_tiktok_studio_live(social_configuration: dict, limit: int) -> dict:
     }
 
 
+def collect_youtube_studio_live(
+    social_configuration: dict,
+    limit: int = 3,
+    video_id: str = "",
+    self_subscribers: int = 0,
+) -> dict:
+    """Extract YouTube Studio Short analytics via background tab + Shadow-DOM walker without stealing focus."""
+    explicit_vid = (video_id or social_configuration.get("youtube_video_id") or "").strip()
+    open_tabs = chromejs.list_tabs("studio.youtube.com")
+    target_pid = None
+    target_win_idx = 0
+    discovered_ids: list[str] = []
+    if explicit_vid:
+        discovered_ids.append(explicit_vid)
+
+    for tab in open_tabs:
+        if tab.get("pid") and target_pid is None:
+            target_pid = int(tab["pid"])
+            target_win_idx = max(0, int(tab.get("window_index", 1)) - 1)
+        m = re.search(r"studio\.youtube\.com/video/([A-Za-z0-9_-]{8,15})/", tab.get("url", ""))
+        if m and m.group(1) not in discovered_ids:
+            discovered_ids.append(m.group(1))
+
+    if not discovered_ids and not open_tabs:
+        return {"shorts": [], "note": "Sin pestaña abierta de studio.youtube.com ni --yt-video indicado."}
+
+    bg_info = chromejs.open_background_tab(
+        f"https://studio.youtube.com/video/{discovered_ids[0]}/analytics/hub_overview"
+        if discovered_ids
+        else "https://studio.youtube.com/",
+        window_index=target_win_idx,
+        pid=target_pid,
+    )
+    bg_tab_id = bg_info.get("tab_id", "")
+    bg_pid = bg_info.get("pid", target_pid)
+
+    shorts_data: list[dict] = []
+    try:
+        if not discovered_ids and bg_tab_id:
+            time.sleep(4.8)
+            raw_links = chromejs.execute_javascript_on_tab_id(
+                """(() => JSON.stringify(
+                  Array.from(document.querySelectorAll('a[href*="/video/"]')).map(a => a.href)
+                ))()""",
+                tab_id=bg_tab_id,
+                pid=bg_pid,
+            )
+            for href in json.loads(raw_links or "[]"):
+                m = re.search(r"/video/([A-Za-z0-9_-]{8,15})/", href)
+                if m and m.group(1) not in discovered_ids:
+                    discovered_ids.append(m.group(1))
+                if len(discovered_ids) >= limit:
+                    break
+
+        for vid in discovered_ids[: max(1, limit)]:
+            if not bg_tab_id:
+                break
+            pages = {}
+            for key, sub_path in (
+                ("overview", f"https://studio.youtube.com/video/{vid}/analytics/hub_overview"),
+                ("reach", f"https://studio.youtube.com/video/{vid}/analytics/tab-reach_viewers/period-default"),
+                ("engagement", f"https://studio.youtube.com/video/{vid}/analytics/tab-interest_viewers/period-default"),
+                ("audience", f"https://studio.youtube.com/video/{vid}/analytics/tab-build_audience/period-default"),
+            ):
+                chromejs.run_jxa(f"""
+                const app = Application({bg_pid});
+                for (const w of app.windows()) {{
+                  for (const t of w.tabs()) {{
+                    if (String(t.id()) === {json.dumps(str(bg_tab_id))}) {{ t.url = {json.dumps(sub_path)}; break; }}
+                  }}
+                }}
+                'OK';
+                """)
+                time.sleep(4.8)
+                pages[key] = chromejs.execute_javascript_on_tab_id(
+                    SHADOW_DOM_TEXT_JS,
+                    tab_id=bg_tab_id,
+                    pid=bg_pid,
+                )
+
+            shorts_data.append(
+                parse_youtube_studio_short_analytics(
+                    video_id=vid,
+                    overview_text=pages.get("overview", ""),
+                    reach_text=pages.get("reach", ""),
+                    engagement_text=pages.get("engagement", ""),
+                    audience_text=pages.get("audience", ""),
+                    self_subscribers=self_subscribers if vid == discovered_ids[0] else 0,
+                )
+            )
+    finally:
+        if bg_tab_id:
+            chromejs.close_tab_by_id(bg_tab_id, pid=bg_pid)
+
+    return {"shorts": shorts_data}
+
+
 def collect_meta_studio_live(social_configuration: dict) -> dict:
     target_url = build_meta_insights_url(social_configuration)
-    chromejs.navigate_tab(target_url, url_match="business.facebook.com")
+    chromejs.navigate_tab(target_url, url_match="business.facebook.com", background=True)
     time.sleep(6.0)
     resolved_url = chromejs.execute_javascript("location.href", url_match="business.facebook.com")
 
@@ -943,7 +1354,7 @@ def collect_meta_studio_live(social_configuration: dict) -> dict:
 def collect_instagram_reels_live(social_configuration: dict, limit: int) -> dict:
     handle = social_configuration.get("instagram_handle", "")
     profile_url = f"https://www.instagram.com/{handle}/" if handle else "https://www.instagram.com/"
-    chromejs.navigate_tab(profile_url, url_match="instagram.com")
+    chromejs.navigate_tab(profile_url, url_match="instagram.com", background=True)
     time.sleep(4.5)
 
     if not handle:
@@ -958,7 +1369,7 @@ def collect_instagram_reels_live(social_configuration: dict, limit: int) -> dict
         )
         if discovered_profile:
             handle = discovered_profile
-            chromejs.navigate_tab(f"https://www.instagram.com/{handle}/", url_match="instagram.com")
+            chromejs.navigate_tab(f"https://www.instagram.com/{handle}/", url_match="instagram.com", background=True)
             time.sleep(4.0)
 
     reel_urls = json.loads(
@@ -972,15 +1383,19 @@ def collect_instagram_reels_live(social_configuration: dict, limit: int) -> dict
 
     reels_metrics = []
     for reel_url in reel_urls:
-        chromejs.navigate_tab(reel_url, url_match="instagram.com")
+        chromejs.navigate_tab(reel_url, url_match="instagram.com", background=True)
         time.sleep(3.5)
         metadata = json.loads(
             chromejs.execute_javascript(
-                """(() => ({
-                  title: document.querySelector('meta[property="og:title"]')?.content || document.title,
-                  time: document.querySelector('time')?.getAttribute('datetime') || '',
-                  aiLabel: document.body.innerText.includes('Contenido de IA')
-                }))()""",
+                """(() => {
+                  const mainTxt = (document.querySelector('article, main')?.innerText || document.body.innerText);
+                  return {
+                    title: document.querySelector('meta[property="og:title"]')?.content || document.title,
+                    time: document.querySelector('time')?.getAttribute('datetime') || '',
+                    aiLabel: mainTxt.includes('Contenido de IA'),
+                    editedCaption: /\\b(Editado|Edited)\\b/.test(mainTxt)
+                  };
+                })()""",
                 url_match="instagram.com",
             )
         )
@@ -1016,9 +1431,14 @@ def print_console_report(report: dict) -> None:
     windows = report.get("optimal_publish_windows", {})
     if windows:
         print(f"\n🕒 Ventanas Óptimas de Despliegue para {config['client_name']} (Independientes por Red):")
-        for net_key, net_label in (("tiktok", "TikTok"), ("instagram", "Instagram"), ("facebook", "Facebook")):
+        for net_key, net_label in (
+            ("tiktok", "TikTok"),
+            ("youtube", "YouTube"),
+            ("instagram", "Instagram"),
+            ("facebook", "Facebook"),
+        ):
             w_info = windows.get(net_key, {})
-            if w_info:
+            if isinstance(w_info, dict) and w_info.get("recommended_deploy_window"):
                 print(f"   • {net_label:<10}: {w_info.get('recommended_deploy_window')}  [{w_info.get('source')}]")
 
     tiktok_section = report.get("tiktok_studio", {})
@@ -1033,6 +1453,21 @@ def print_console_report(report: dict) -> None:
                 f"   • {video['published_date'] or video['video_id']}: {video['views']} vistas | "
                 f"prom. {video['average_watch_seconds']}s | completo {video['watched_full_percent']}% | "
                 f"abandono {video['primary_dropoff_timestamp'] or '-'} | {video['caption'][:55]}"
+            )
+
+    youtube_shorts = report.get("youtube_studio", {}).get("shorts", [])
+    if youtube_shorts:
+        print(f"\n▶️ YouTube Studio Shorts — {len(youtube_shorts)} Shorts:")
+        for yt in youtube_shorts:
+            sub_note = (
+                f"+{yt['net_subscribers']} netos (+{yt['subscribers_raw']} bruto, -{yt['self_subscribers_excluded']} propio)"
+                if yt.get("self_subscribers_excluded")
+                else f"+{yt.get('net_subscribers', 0)}"
+            )
+            print(
+                f"   • {yt['video_id']}: {yt['views']} vistas ({yt['engaged_views']} interesadas) | "
+                f"prom. {yt['average_view_duration_seconds']}s | quedaron {yt['stayed_to_watch_percent']}% vs "
+                f"saltaron {yt['swiped_away_percent']}% | búsqueda {yt['search_traffic_percent']}% | subs {sub_note}"
             )
 
     meta_items = [
@@ -1055,9 +1490,10 @@ def print_console_report(report: dict) -> None:
         print(f"\n📸 Instagram (@{report['instagram'].get('instagram_handle', '?')}) — {len(instagram_reels)} Reels:")
         for reel in instagram_reels:
             ai_flag = " [Contenido de IA]" if reel["has_ai_content_label"] else ""
+            edit_flag = " [Copy Editado]" if reel.get("caption_edited_post_publish") else ""
             print(
                 f"   • {reel['views']} vistas ({reel['non_followers_percent']}% no seg.) | "
-                f"guardados {reel['saves']} | DM {reel['shares']}{ai_flag}"
+                f"guardados {reel['saves']} | DM {reel['shares']}{ai_flag}{edit_flag}"
             )
 
     print("\n🩺 Diagnóstico por Modelo de Negocio:")
@@ -1067,14 +1503,127 @@ def print_console_report(report: dict) -> None:
         for finding in evaluation["findings"]:
             print(f"   [{finding['severity'].upper()}] {finding['summary']}")
 
+    multichannel = report.get("multichannel_deployment") or {}
+    if multichannel:
+        active = ", ".join(multichannel.get("published_channels") or []) or "ninguno"
+        missing = ", ".join(multichannel.get("missing_channels") or [])
+        print(f"\n🌐 Despliegue 4 Canales: publicados=[{active}]" + (f" | pendientes=[{missing}]" if missing else " | ✓ Completo"))
+
+    benchmark = report.get("creator_benchmark") or {}
+    if benchmark.get("items"):
+        print(f"\n🏆 Benchmark Divulgadores Tech («{benchmark.get('topic', '')}») — {len(benchmark['items'])} referencias:")
+        for item in benchmark["items"][:6]:
+            print(f"   • {item.get('creator', '?')}: {item.get('views_label', '?')} | {item.get('title', '')[:62]}")
+
+
+def evaluate_multichannel_deployment(
+    project_root: str,
+    configuration: dict,
+    tiktok_data: dict,
+    instagram_data: dict,
+    youtube_data: dict,
+) -> dict:
+    """Verify 4-channel rollout (TikTok, Instagram Reels, YouTube Shorts, LinkedIn) when COPYS-REDES.md is present."""
+    has_copys = os.path.isfile(os.path.join(project_root, "COPYS-REDES.md"))
+    social_cfg = {}
+    cfg_path = os.path.join(project_root, "project_config.json")
+    if os.path.isfile(cfg_path):
+        try:
+            social_cfg = (json.load(open(cfg_path, encoding="utf-8")) or {}).get("social") or {}
+        except (OSError, ValueError):
+            social_cfg = {}
+
+    published = []
+    if tiktok_data.get("videos") or social_cfg.get("tiktok_post_id"):
+        published.append("tiktok")
+    if instagram_data.get("reels") or social_cfg.get("instagram_shortcode"):
+        published.append("instagram")
+    if youtube_data.get("shorts") or configuration.get("youtube_video_id") or social_cfg.get("youtube_video_id"):
+        published.append("youtube_shorts")
+    if social_cfg.get("linkedin_post_url") or social_cfg.get("linkedin_published"):
+        published.append("linkedin")
+
+    expected = ["tiktok", "instagram", "youtube_shorts", "linkedin"]
+    missing = [ch for ch in expected if ch not in published] if has_copys else []
+    return {
+        "has_copys_redes_md": has_copys,
+        "published_channels": published,
+        "missing_channels": missing,
+        "is_full_4channel_rollout": bool(has_copys and not missing),
+    }
+
+
+def collect_creator_benchmark_live(topic: str, limit: int = 6) -> dict:
+    """Query YouTube Shorts results for `topic` in an ephemeral zero-focus background tab for creator benchmarking."""
+    clean_topic = (topic or "").strip()
+    if not clean_topic:
+        return {}
+    search_url = "https://www.youtube.com/results?" + urlencode({"search_query": f"{clean_topic} #shorts"})
+    tab_handle = None
+    try:
+        tab_handle = chromejs.open_background_tab(search_url)
+        time.sleep(2.6)
+        js_extract = f"""
+        (() => {{
+            const out = [];
+            const seen = new Set();
+            const links = Array.from(document.querySelectorAll('a[href*="/shorts/"]'));
+            for (const a of links) {{
+                const href = a.getAttribute('href') || '';
+                const m = href.match(/\\/shorts\\/([A-Za-z0-9_-]{{8,14}})/);
+                if (!m || seen.has(m[1])) continue;
+                const card = a.closest('ytd-video-renderer, ytd-reel-item-renderer, ytm-shorts-lockup-view-model-v2, ytm-shorts-lockup-view-model, div') || a;
+                const raw = (card.innerText || a.innerText || '').split('\\n').map(s => s.trim()).filter(Boolean);
+                if (!raw.length) continue;
+                seen.add(m[1]);
+                const viewsLine = raw.find(s => /visualizaciones|vistas|views/i.test(s)) || '';
+                const channelNode = card.querySelector('ytd-channel-name a, #channel-name a, [href*="/@"]');
+                out.push({{
+                    short_id: m[1],
+                    url: 'https://www.youtube.com/shorts/' + m[1],
+                    title: raw[0] || '',
+                    creator: channelNode ? (channelNode.innerText || '').trim() : (raw[1] || ''),
+                    views_label: viewsLine
+                }});
+                if (out.length >= {int(limit)}) break;
+            }}
+            return JSON.stringify(out);
+        }})()
+        """
+        raw_json = chromejs.execute_javascript_on_tab_id(
+            tab_handle["window_id"],
+            tab_handle["tab_id"],
+            js_extract,
+            chrome_pid=tab_handle.get("chrome_pid"),
+        )
+        items = json.loads(raw_json or "[]")
+        return {
+            "topic": clean_topic,
+            "search_url": search_url,
+            "collected_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+            "items": items,
+        }
+    except Exception as exc:
+        return {"topic": clean_topic, "error": str(exc), "items": []}
+    finally:
+        if tab_handle:
+            try:
+                chromejs.close_tab_by_id(
+                    tab_handle["window_id"],
+                    tab_handle["tab_id"],
+                    chrome_pid=tab_handle.get("chrome_pid"),
+                )
+            except Exception:
+                pass
+
 
 def build_argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Auditor automático de TikTok Studio, Meta Business Suite e Instagram por modelo de negocio."
+        description="Auditor automático de TikTok Studio, YouTube Studio, Meta Business Suite e Instagram por modelo de negocio."
     )
     parser.add_argument(
         "--platform",
-        choices=["all", "tiktok", "meta", "instagram"],
+        choices=["all", "tiktok", "youtube", "meta", "instagram"],
         default="all",
         help="Plataformas a consultar en Google Chrome (default: all)",
     )
@@ -1087,12 +1636,15 @@ def build_argument_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--ig", default="", help="Handle de Instagram del cliente (ej: webresstudio)")
     parser.add_argument("--tiktok", default="", help="Handle de TikTok del cliente (ej: williamromerovela)")
+    parser.add_argument("--yt-video", default="", help="ID del video/Short en YouTube Studio (ej: 2GH8Di_g8ZI)")
+    parser.add_argument("--self-subs", type=int, default=0, help="Suscriptores propios de prueba a descontar del neto")
+    parser.add_argument("--benchmark", default="", help="Tema para comparar automáticamente contra Shorts de otros divulgadores tech")
     parser.add_argument("--meta-asset", default="", help="asset_id de la cuenta en Meta Business Suite")
     parser.add_argument("--meta-business", default="", help="business_id del portafolio en Meta Business Suite")
     parser.add_argument(
         "--save-windows",
         action="store_true",
-        help="Persistir las ventanas óptimas descubiertas (FB/IG/TikTok) en project_config.json",
+        help="Persistir las ventanas óptimas descubiertas (FB/IG/TikTok/YT) en project_config.json",
     )
     parser.add_argument("--out", default="", help="Ruta de salida para el reporte JSON (default: check/social_analytics.json)")
     return parser
@@ -1109,17 +1661,26 @@ def main(argv=None) -> int:
             "business_model": parsed_args.model,
             "instagram_handle": parsed_args.ig,
             "tiktok_handle": parsed_args.tiktok,
+            "youtube_video_id": parsed_args.yt_video,
             "meta_asset_id": parsed_args.meta_asset,
             "meta_business_id": parsed_args.meta_business,
         },
     )
 
     tiktok_data = {}
+    youtube_data = {}
     meta_data = {}
     instagram_data = {}
 
     if parsed_args.platform in ("all", "tiktok"):
         tiktok_data = collect_tiktok_studio_live(configuration, limit=parsed_args.limit)
+    if parsed_args.platform in ("all", "youtube"):
+        youtube_data = collect_youtube_studio_live(
+            configuration,
+            limit=parsed_args.limit,
+            video_id=parsed_args.yt_video,
+            self_subscribers=parsed_args.self_subs,
+        )
     if parsed_args.platform in ("all", "meta"):
         meta_data = collect_meta_studio_live(configuration)
     if parsed_args.platform in ("all", "instagram"):
@@ -1131,6 +1692,7 @@ def main(argv=None) -> int:
         meta_items=meta_data.get("items", []),
         instagram_reels=instagram_data.get("reels", []),
         tiktok_overview=tiktok_data.get("overview", {}),
+        youtube_shorts=youtube_data.get("shorts", []),
     )
     optimal_windows = discover_brand_publish_windows(
         social_configuration=configuration,
@@ -1138,6 +1700,7 @@ def main(argv=None) -> int:
         meta_items=meta_data.get("items", []),
         instagram_reels=instagram_data.get("reels", []),
         tiktok_overview=tiktok_data.get("overview", {}),
+        youtube_shorts=youtube_data.get("shorts", []),
     )
 
     if parsed_args.save_windows:
@@ -1145,14 +1708,43 @@ def main(argv=None) -> int:
         if os.path.isfile(cfg_path):
             try:
                 cfg_obj = json.load(open(cfg_path, encoding="utf-8"))
-                cfg_obj.setdefault("social", {})["optimal_publish_windows"] = {
+                saved_win = {
                     net: optimal_windows[net]["recommended_deploy_window"]
                     for net in ("tiktok", "instagram", "facebook")
+                    if net in optimal_windows
                 }
+                if "youtube" in optimal_windows:
+                    saved_win["youtube"] = optimal_windows["youtube"]["recommended_deploy_window"]
+                cfg_obj.setdefault("social", {})["optimal_publish_windows"] = saved_win
                 with open(cfg_path, "w", encoding="utf-8") as cfh:
                     json.dump(cfg_obj, cfh, ensure_ascii=False, indent=2)
             except (OSError, ValueError):
                 pass
+
+    multichannel_status = evaluate_multichannel_deployment(
+        project_root=project_root,
+        configuration=configuration,
+        tiktok_data=tiktok_data,
+        instagram_data=instagram_data,
+        youtube_data=youtube_data,
+    )
+    if multichannel_status.get("missing_channels"):
+        evaluation["findings"].append(
+            {
+                "severity": "warning",
+                "code": "INCOMPLETE_4CHANNEL_ROLLOUT",
+                "summary": (
+                    f"COPYS-REDES.md está listo pero faltan canales por publicar/registrar: "
+                    f"{', '.join(multichannel_status['missing_channels'])}."
+                ),
+            }
+        )
+
+    creator_benchmark = (
+        collect_creator_benchmark_live(parsed_args.benchmark, limit=max(parsed_args.limit, 6))
+        if parsed_args.benchmark
+        else {}
+    )
 
     output_path = parsed_args.out or os.path.join(project_root, "check", "social_analytics.json")
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
@@ -1160,7 +1752,10 @@ def main(argv=None) -> int:
     full_report = {
         "configuration": configuration,
         "optimal_publish_windows": optimal_windows,
+        "multichannel_deployment": multichannel_status,
+        "creator_benchmark": creator_benchmark,
         "tiktok_studio": tiktok_data,
+        "youtube_studio": youtube_data,
         "meta_business_suite": meta_data,
         "instagram": instagram_data,
         "evaluation": evaluation,

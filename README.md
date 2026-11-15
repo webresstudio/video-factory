@@ -178,24 +178,25 @@ wvf render --workers 4 --fps 60
 # 10. Auditoría técnica y claridad vocal
 wvf qa
 
-# 11. Compresión móvil y distribución
+# 11. Compresión móvil, par oficial de Stories y distribución
+wvf share --include-stories
 wvf share --send-wa --contact "William Romero"
 
 # 12. Corrección quirúrgica de una palabra (e.g. 'API' por 'ápi')
 wvf fix-word L01 "API" "la ápi"
 
-# 13. Auditoría de guion (2 niveles 6s/8s), Punto Dulce visual y Psicoacústica CQT
+# 13. Auditoría de guion (2 niveles 6s/8s + detector de tomas puente), Punto Dulce visual y Psicoacústica CQT
 wvf audit-script GUION.md --lang es
 wvf audit-sweetspot
 wvf audit-music audio/music_only.wav --voice audio/voice.wav --master audio/master.wav
 
-# 14. Analítica multi-red, horas óptimas empíricas (FB != IG != TikTok) y Ledger (0-100)
-wvf analytics --platform all --save-windows
-wvf ledger record --project .
+# 14. Analítica 4 canales (TikTok + YouTube Shorts Shadow-DOM + Meta + IG), Benchmark y Ledger justo (0-100)
+wvf analytics --platform all --yt-video 2GH8Di_g8ZI --self-subs 1 --benchmark "Gemini 4" --save-windows
+wvf ledger record --project . --exclude-self-follows 1
 wvf ledger compare
 
-# 15. Cualquier otra herramienta del pipeline (prompts, Flow QC, inspección)
-wvf tool flow_qc lint --line L01 --prompt prompts/L01_r1.txt
+# 15. Cualquier otra herramienta del pipeline (Flow QC con detector de contagio fonético, prompts, inspección)
+wvf tool flow_qc lint --line L03 --prompt prompts/L03_r1.txt
 wvf tool make_prompts
 wvf tool inspect_clip L01
 ```
@@ -291,11 +292,11 @@ El repositorio incluye y distribuye automáticamente el stack completo de 17 hab
 | Skill | Función Clave en WVF |
 |---|---|
 | `webres-video-factory` | Orquestador maestro del pipeline de 10 fases y control de calidad. |
-| `wbrs-retention-sweetspot` | Ingeniería del Punto Dulce: pulsos visuales de `4.0–6.0 s`, Z-Depth `#zback` detrás del presentador, `nativeHairY` RGBA continuo, Pie Charts `<0.5s` y Story V2 (`wvf audit-sweetspot`). |
+| `wbrs-retention-sweetspot` | Ingeniería del Punto Dulce v1.4: Cold-Open de evidencia en `0.0–1.4 s` (`<= 8.5 s`), tope de `<= 64 s`, pizarra `#s9-sheet <= 56 s`, pulsos `4.0–6.0 s`, Z-Depth `#zback`, `nativeHairY` y auditoría multi-story `story_*.html` (`wvf audit-sweetspot`). |
 | `wbrs-psychoacoustic-mix` | Auditoría musical CQT (`Q=34`): escala Mayor `>=80%`, Octavas 3–4 (`180–780 Hz`), `0` cortes internos, SFX afinados y ventana vocal `-12.0 a -13.5 dB` a `-14 LUFS` (`wvf audit-music`). |
-| `viral-listicle-story` | Narrativa causal para videos de listas con cadencia flexible de 2 niveles (`6 s` / `8 s`) y validador automático (`wvf audit-script`). |
-| `social-analytics-audit` | Auditoría automática en TikTok Studio, Meta Business Suite e Instagram, descubrimiento de hora óptima independiente para `FB`, `IG` y `TikTok` por marca y contabilidad `WBRS Score 0–100` (`wvf analytics`, `wvf ledger`). |
-| `social-copy-multichannel-2026` | Copywriting SEO multimodal en 4 capas (Google/IG/TikTok/LinkedIn H.O.O.P.S. + Alt Text) con despliegue por ventana empírica de cada red. |
+| `viral-listicle-story` | Narrativa causal para videos de listas con cadencia flexible de 2 niveles (`6 s` / `8 s`), detector de tomas puente pre-anuncio y validador automático (`wvf audit-script`). |
+| `social-analytics-audit` | Auditoría multi-proceso Chrome sin robar foco en TikTok Studio (`<video>.currentTime` + reposts), YouTube Studio (Polymer Shadow-DOM Shorts), Meta Business Suite e Instagram (alerta `Editado`), benchmark contra divulgadores y `WBRS Score 0–100` con ponderación justa `null != 0.0` (`wvf analytics`, `wvf ledger`). |
+| `social-copy-multichannel-2026` | Copywriting SEO multimodal en 4 capas (Google/IG/TikTok/YouTube Shorts/LinkedIn H.O.O.P.S. + Alt Text), checklist anti-`Editado` (48h en IG) y despliegue por ventana empírica de cada red. |
 | `tiktok-promote-ui-demos` | Zonas seguras TikTok Promote (`x: 72–910px`, `y: 200–1320px`) y exportación dual `?tiktok=1`. |
 | `hyperframes-causal-cursor` | Cursor protagonista causal (`84–124 px`) sincronizado al milisegundo exacto de la palabra (`W()`). |
 | `manim-progressive-proof` | Pruebas visuales progresivas (`Wrong -> Right`), foco selectivo y medidores dinámicos. |

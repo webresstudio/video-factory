@@ -128,6 +128,13 @@ DEFAULT_ALIASES = {
     "eliptic": "elliptic", "bitguet": "bitget", "bitket": "bitget", "jaquearon": "hackearon",
     "apol": "apple", "esquils": "skills",
     "gio surge": "geosurge", "gio surch": "geosurge", "yo surge": "geosurge", "yio surge": "geosurge",
+    # Gemini 4 / Blender / Guatemalan & Maya entities (calibrated Nov 2026)
+    "haidroyen": "hydrogen", "jaidroyen": "hydrogen", "hydrojen": "hydrogen",
+    "hydrolyan": "hydrogen", "high drawing": "hydrogen", "hydrogen": "hydrogen",
+    "orquestreitor": "orchestrator", "orkestreitor": "orchestrator", "orchestrator": "orchestrator",
+    "yaguar": "jaguar", "jaguar": "jaguar", "tikal": "tikal", "tical": "tikal",
+    "open ei ai": "openai", "openei": "openai", "openai": "openai",
+    "blender": "blender", "antigraviti": "antigravity", "antigravity": "antigravity",
     "un": "uno", "una": "uno",
 }
 
@@ -275,6 +282,20 @@ RISKY_WORDS = [  # palabras que invitan a Flow a dibujar texto
 FORBIDDEN_BODY_WORDS = [  # descriptores que deforman torso/hombros del avatar @Yo (detectado en L01_b)
     r"\b200\s*lb\b", r"\b200lb\b", r"\brobust\s+exercised\b", r"\bmuscular\s+build\b", r"\bbodybuilder\b",
 ]
+ENGLISH_CONTAGION_TRIGGERS = (
+    "blender", "hydrogen", "haidroyen", "carbon", "orchestrator", "orquestreitor",
+    "claude", "clod", "codex", "prompt", "prompts", "antigravity", "flow", "gemini", "yémini",
+)
+SPANISH_CONTAGION_COGNATES = {
+    "jaguar": "jáguar",
+    "tikal": "tikál",
+    "radar": "radár",
+    "panel": "panél",
+    "viral": "virál",
+    "fatal": "fatál",
+    "control": "contról",
+    "motor": "motór",
+}
 
 
 def lint(root, line, prompt_path, dur=None, allow_override=False):
@@ -331,9 +352,22 @@ def lint(root, line, prompt_path, dur=None, allow_override=False):
         acr = [w for w in re.findall(r"\b[A-ZÁÉÍÓÚ]{2,}\b", dlg)]
         if acr:
             res["fails"].append(f"Siglas en mayúscula {acr}: Flow las deletrea. Escríbelas fonéticas (p. ej. 'i-a').")
-        for raw in ["ChatGPT", "Google", "YouTube", "GeoSurge", "Instagram", "WhatsApp", "Facebook"]:
+        for raw in ["ChatGPT", "Google", "YouTube", "GeoSurge", "Instagram", "WhatsApp", "Facebook", "Hydrogen", "Orchestrator"]:
             if raw in dlg:
-                res["warns"].append(f"'{raw}' en inglés: considera la forma fonética (Chat yi pi tí, Gúgol, Yutub...).")
+                res["warns"].append(f"'{raw}' en inglés: considera la forma fonética (Chat yi pi tí, Gúgol, Haidroyen, Orquestreitor...).")
+
+        dlg_low = dlg.lower()
+        if any(re.search(rf"\b{re.escape(trig)}\b", dlg_low) for trig in ENGLISH_CONTAGION_TRIGGERS):
+            exposed_cognates = [
+                f"{cog} → {guide}"
+                for cog, guide in SPANISH_CONTAGION_COGNATES.items()
+                if re.search(rf"\b{re.escape(cog)}\b", dlg_low)
+            ]
+            if exposed_cognates:
+                res["warns"].append(
+                    "Riesgo de contagio fonético inglés (efecto 'gran yawar'): al mezclar términos tech en inglés "
+                    f"con cognados en español, guía el acento en spoken_text ({', '.join(exposed_cognates)})."
+                )
     for key, pat, msg in REQUIRED:
         if not re.search(pat, prompt, flags=re.M):
             res["fails"].append(msg)
